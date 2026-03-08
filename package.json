@@ -1,0 +1,16 @@
+{
+  "name": "zustand-server",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/react": "^19.2.14"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "react": "^19.2.4",
+    "react-server": "/home/dylan/code/other/react-server/packages/react-server",
+    "zustand": "^5.0.11"
+  }
+}
