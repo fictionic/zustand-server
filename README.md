@@ -36,7 +36,7 @@ defineZustandIsoStore<MyOpts, MyState>(
 );
 ```
 
-The SSR integration is left to the call site — `zustand-server` has no dependency on react-server or any specific SSR framework:
+The SSR integration is left to the call site — `isomorphic-stores` has no dependency on react-server or any specific SSR framework:
 
 ```tsx
 // in handleRoute / getElements (react-server)
