@@ -1,7 +1,7 @@
 import type {Context, ReactNode} from "react";
-import type {StoreInstance, StoreProvider, ZustandStore} from ".";
+import type {StoreInstance, StoreProvider, AdaptedStore} from "./core";
 
-export function getStoreProvider<State>(context: Context<ZustandStore<State> | null>): StoreProvider<State> {
+export function getStoreProvider<State>(context: Context<AdaptedStore<State> | null>): StoreProvider<State> {
 
   const {Provider} = context;
 
@@ -14,7 +14,7 @@ export function getStoreProvider<State>(context: Context<ZustandStore<State> | n
     children,
   }: Props) {
     return (
-      <Provider value={instance.zStore}>
+      <Provider value={instance.adaptedStore}>
         {children}
       </Provider>
     );

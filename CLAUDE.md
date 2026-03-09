@@ -1,23 +1,35 @@
 
 ## Project Overview
 
-`zustand-server` is a state management library that bridges [Zustand](https://github.com/pmndrs/zustand) with [react-server](https://github.com/redfin/react-server) (Redfin's SSR framework). The core idea: stores are created server-side before render (e.g. in `handleRoute`), async data is declared via `waitFor`, and react-server's `RootElement` blocks rendering until the store is ready. Client-side components can also create stores independently via `useCreateClientStore`.
+A framework-agnostic SSR state management library with an adapter system. The core idea: stores are created server-side before render (e.g. in `handleRoute`), async data is declared via `waitFor`, and the SSR framework (e.g. react-server's `RootElement`) blocks rendering until the store is ready. Client-side components can also create stores independently via `useCreateClientStore`.
+
+Originally conceived as a Zustand+react-server bridge, now being generalized to support any store-based framework (single state object with `getState`/`setState`/`subscribe`). Atom-based frameworks (Jotai, Recoil) are out of scope.
 
 ### Key files
-- `src/index.ts` — main library (`defineStore`, types)
+- `src/core.ts` — framework-agnostic core (`defineStore`, `WaitFor`, `UniversalStore`, `StoreDefinition`)
+- `src/adapter.ts` — adapter interface types (`Adapter`, `NativeStoreFactory`, `NativeStoreDefinitionFactory`)
+- `src/adapters/zustand.ts` — Zustand adapter (`defineZustandIsoStore`)
 - `src/StoreProvider.tsx` — generic context Provider component
-- `src/examples/` — example store and components
+- `src/examples/` — example stores and components
 
-### Core API
+### Architecture
+
+Two-layer factory pattern:
+- **Outer layer** (library): `(opts, waitFor) => NativeStoreDefinition` — receives opts and waitFor, returns a native store definition
+- **Inner layer** (framework): e.g. `(set, get) => State` for Zustand — the native store creator
 
 ```ts
-// Define a store
-const MyStore = defineStore<MyOpts, MyState>((opts, set, get, waitFor) => ({
-  ...waitFor('name', fetchName(opts.userId), ''),
-  setName: (name) => set({ name }),
-}));
+// Zustand example (MyStore2.ts)
+defineZustandIsoStore<MyOpts, MyState>(
+  ({ userId }, waitFor) => (       // outer: opts + waitFor
+    (set, get) => ({               // inner: Zustand StateCreator
+      ...waitFor('name', fetchName(userId), ''),
+      setName: (name) => set({ name }),
+    })
+  )
+);
 
-// Server-side (handleRoute / getElements)
+// Server-side usage
 const store = MyStore.createStore({ userId: 1 });
 // <RootElement when={() => store.ready}>
 //   <MyStore.StoreProvider instance={store}>
@@ -25,7 +37,7 @@ const store = MyStore.createStore({ userId: 1 });
 //   </MyStore.StoreProvider>
 // </RootElement>
 
-// In components (server-rendered)
+// In server-rendered components
 const name = MyStore.useStore(s => s.name);
 
 // Client-only components
@@ -34,15 +46,18 @@ const name = useClientStore(s => s.name); // null until ready
 ```
 
 ### Design decisions
-- `waitFor(key, promise, initialValue)` declares async state — returns `{ key: initialValue }` to spread into state, registers promise to resolve after init
-- `ready` is a `Promise<void>` that resolves when all `waitFor` promises complete
-- `zustand-server` has no dependency on react-server — integration happens at the call site via `RootElement.when`
-- `useCreateClientStore` creates the store in a `useEffect` (client-only), returns `{ ready, useClientStore }` where `useClientStore` returns `T | null`
-- Client-side re-fetching / "going pending again" is intentionally not yet designed
+- `waitFor(key, promise, initialValue)` — returns `{ key: initialValue }` to spread into state, registers promise; `setState` is called after native store is created (avoids chicken-and-egg)
+- `ready: Promise<void>` resolves when all `waitFor` promises complete
+- Core has no dependency on any SSR or store framework — integration is at the call site
+- `Adapter<NativeStore>` is a single generic function `<State>(nativeStore) => UniversalStore<State>`
+- `uStore` on `StoreInstance` should eventually be made private via symbol key
+- Names are mostly placeholders — `uStore`, `NativeStoreDefinitionFactory` etc. to be revised
 
 ### Open questions
-- How should client-side re-fetching work? Options: store manages its own loading state, `waitFor` callable after init, or framework-managed `pending` state
-- Export API: should hooks be on the `StoreDefinition` object or exported as named hooks from store modules
+- Client-side re-fetching / "going pending again" — not yet designed
+- Export API: hooks on `StoreDefinition` object vs named exports from store modules
+- Naming: `factory` vs `init` are too similar; `storeFactory`/`stateCreator` may be clearer
+- Whether to offer a flattened single-lambda API for ergonomics alongside the two-layer version
 
 ---
 
