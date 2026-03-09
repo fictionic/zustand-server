@@ -1,5 +1,5 @@
 import {useEffect, type Context, type ReactNode} from "react";
-import {type IsoStoreInstance, type StoreProvider, type AdaptedStore} from ".";
+import {type IsoStoreInstance, type StoreProvider, type AdaptedStore} from "./types";
 
 export function getStoreProvider<State, Message>(
   context: Context<AdaptedStore<State> | null>,

@@ -10,9 +10,9 @@ export const STORE_INTERNALS: unique symbol = Symbol();
 
 export type WaitFor<State> = <K extends keyof State, V extends State[K]>(name: K, promise: Promise<V>, initialValue: V) => { [key in K]: V };
 export type MessageHandler<Message> = (message: Message) => void;
-export type OnMessage<Message> = (handler: MessageHandler<Message>) => Record<string, never>; // empty object for ergonomics
+export type OnMessage<Message> = (handler: MessageHandler<Message>) => void;
 
-export interface IsoStoreInstance<State, Message> {
+export interface IsoStoreInstance<State, Message = never> {
   adaptedStore: AdaptedStore<State>;
   whenReady: Promise<void>;
   [STORE_INTERNALS]: {
@@ -22,7 +22,7 @@ export interface IsoStoreInstance<State, Message> {
 }
 
 
-export type StoreProvider<State, Message> = React.FC<{ instance: IsoStoreInstance<State, Message>, children: ReactNode }>;
+export type StoreProvider<State, Message = never> = React.FC<{ instance: IsoStoreInstance<State, Message>, children: ReactNode }>;
 export type UseStore<State> = <T>(selector: (state: State) => T) => T;
 export type UseClientStore<State> = <T>(selector: (state: State) => T) => T | null;
 export type UseCreateClientStore<Opts, State> = (opts: Opts) => {
@@ -31,7 +31,7 @@ export type UseCreateClientStore<Opts, State> = (opts: Opts) => {
 };
 export type Broadcast<Message> = (message: Message) => void;
 
-export interface IsoStoreDefinition<Opts, State, Message> {
+export interface IsoStoreDefinition<Opts, State, Message = never> {
   // use these to wire up a store to the root of a page
   createStore: (opts: Opts) => IsoStoreInstance<State, Message>
   StoreProvider: StoreProvider<State, Message>;

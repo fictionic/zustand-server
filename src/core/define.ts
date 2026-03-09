@@ -31,7 +31,7 @@ function makeWaitFor<State>(pending: Array<{name: keyof State, promise: Promise<
   };
 }
 
-export const defineIsoStore = <Opts, State, Message, NativeStore>(
+export const defineIsoStore = <Opts, State, Message = never, NativeStore = never>(
   factory: StoreFactory<Opts, State, Message, NativeStore>,
   adapter: Adapter<NativeStore>,
 ) => {
@@ -43,7 +43,6 @@ export const defineIsoStore = <Opts, State, Message, NativeStore>(
     const messageHandlers: Array<MessageHandler<Message>> = [];
     const onMessage: OnMessage<Message> = (handler) => {
       messageHandlers.push(handler);
-      return {};
     };
     const nativeStore = factory(opts, waitFor, onMessage);
     const adaptedStore = adapter<State>(nativeStore);

@@ -28,12 +28,17 @@ The core is framework-agnostic — it defines the `waitFor`/`whenReady` protocol
 Store definitions use a two-layer factory pattern:
 
 ```ts
-defineZustandIsoStore<MyOpts, MyState>(
-  ({ userId }, waitFor) => (                     // outer: opts + waitFor (library layer)
-    (set, get) => ({                             // inner: Zustand StateCreator (framework layer)
-      ...waitFor('name', fetchName(userId), ''), // declares a dependency on fetchName.
-      setName: (name) => set({ name }),          //  the state will update with the resolved value
-    })
+defineZustandIsoStore<MyOpts, MyState, MyMessage>(
+  ({ userId }, waitFor, onMessage) => (          // outer: opts + waitFor + onMessage (library layer)
+    (set, get) => {                              // inner: Zustand StateCreator (framework layer)
+      onMessage((msg) => {                       // call as a statement — registers a message handler
+        if (msg.type === 'reset') set({ name: '' });
+      });
+      return {
+        ...waitFor('name', fetchName(userId), ''), // declares async dependency; state updates when resolved
+        setName: (name) => set({ name }),
+      };
+    }
   )
 );
 ```
@@ -59,6 +64,26 @@ const { ready, useClientStore } = MyStore.useCreateClientStore({ userId: 1 });
 const name = useClientStore(s => s.name); // null until ready
 ```
 
+## Exports
+
+There are two entry points:
+
+- **`isomorphic-stores`** — for store consumers. Exports the types you need to define and interact with stores: `IsoStoreDefinition`, `IsoStoreInstance`, `WaitFor`, `OnMessage`, `MessageHandler`, `Broadcast`.
+- **`isomorphic-stores/adapter`** — for adapter authors. Exports everything needed to wrap a new store framework: `defineIsoStore`, `Adapter`, `StoreInit`, `StoreFactory`, `AdaptedStore`, plus the shared types above.
+
+The bundled adapters (`defineZustandIsoStore`, `defineReduxIsoStore`) live in `src/examples/adapters/` and are reference implementations, not published as part of the package. Copy and adapt them for your own use.
+
+## Examples
+
+`src/examples/react-server/` contains a worked example using react-server:
+
+- **`UserStore.ts`** — server-rendered store using `waitFor` (async SSR data), `onMessage` (cross-root broadcast handler), and Zustand actions (`set`/`get`)
+- **`NotificationsStore.ts`** — client-only store with no SSR dependency, created via `useCreateClientStore`
+- **`UserWidget.tsx`** — consumes `UserStore` via `useStore` with granular selectors; calls Zustand actions directly
+- **`NotificationsWidget.tsx`** — uses `useCreateClientStore`; renders null until ready
+- **`Header.tsx`** — rendered in a separate root with no `StoreProvider`; communicates with `UserStore` via `broadcast`
+- **`Page.tsx`** — server-side entry point showing multiple roots, `createStore`, and `StoreRoot`
+
 ## Cross-root communication
 
 Because stores are scoped to a React context tree, components in different roots can't access each other's stores. This is an inherent consequence of the instance-per-request model — the same thing that makes SSR safe also breaks the "access any store from anywhere" pattern that frameworks like Zustand support natively.
@@ -71,7 +96,7 @@ Currently, `isomorphic-stores` addresses this with a `broadcast` mechanism on th
 // from anywhere
 MyStore.broadcast({ type: 'openDialog' });
 
-// in the store definition
+// in the store definition (called as a statement in the inner factory)
 onMessage((message) => {
   if (message.type === 'openDialog') set({ dialogOpen: true });
 });

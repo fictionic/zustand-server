@@ -8,11 +8,14 @@ Originally conceived as a Zustand+react-server bridge, now being generalized to 
 A secondary goal: replace the pattern of bubbling all UI updates up through a root element (which triggers full-tree re-renders) with granular per-component subscriptions via selectors. This library is intended to power both server and client rendering — not just be an SSR adapter that hands off to a singleton store on the client.
 
 ### Key files
-- `src/core.ts` — framework-agnostic core (`defineStore`, `WaitFor`, `StoreDefinition`, `StoreInstance`, `STORE_INTERNALS`)
-- `src/adapter.ts` — adapter interface types (`Adapter`, `NativeStoreFactory`)
-- `src/adapters/zustand.ts` — Zustand adapter (`defineZustandIsoStore`)
-- `src/StoreProvider.tsx` — generic context Provider component (also handles instance register/teardown)
-- `src/examples/` — example stores and components
+- `src/core/types.ts` — all public types (`IsoStoreDefinition`, `IsoStoreInstance`, `WaitFor`, `OnMessage`, etc.)
+- `src/core/define.ts` — `defineIsoStore`, internal logic, `STORE_INTERNALS`
+- `src/core/adapter.ts` — adapter author types (`Adapter`, `StoreInit`, `StoreFactory`)
+- `src/core/StoreProvider.tsx` — generic context Provider (handles instance register/teardown in useEffect)
+- `src/index.ts` — consumer entry point
+- `src/adapter.ts` — adapter author entry point
+- `src/examples/adapters/` — reference adapter implementations (Zustand, Redux)
+- `src/examples/react-server/` — example stores and components
 
 ### Architecture
 
@@ -24,11 +27,15 @@ Two-layer factory pattern:
 // Zustand example
 defineZustandIsoStore<MyOpts, MyState, MyMessage>(
   ({ userId }, waitFor, onMessage) => (  // outer: opts + waitFor + onMessage
-    (set, get) => ({                     // inner: Zustand StateCreator
-      ...waitFor('name', fetchName(userId), ''),
-      ...onMessage((msg) => set({ note: msg })),  // spread {} for ergonomics
-      setName: (name) => set({ name }),
-    })
+    (set, get) => {                      // inner: Zustand StateCreator (block body required for onMessage)
+      onMessage((msg) => {               // called as a statement — registers handler, returns void
+        if (msg.type === 'reset') set({ name: '' });
+      });
+      return {
+        ...waitFor('name', fetchName(userId), ''),
+        setName: (name) => set({ name }),
+      };
+    }
   )
 );
 
@@ -56,7 +63,7 @@ MyStore.broadcast(message);
 - `whenReady: Promise<void>` resolves when all `waitFor` promises complete
 - Core has no dependency on any SSR or store framework — integration is at the call site
 - `Adapter<NativeStore>` is a single generic function `<State>(nativeStore) => AdaptedStore<State>`
-- `onMessage(handler)` — registers a message handler on the store instance, returns `{}` so it can be spread into state for ergonomics
+- `onMessage(handler)` — registers a message handler on the store instance, returns `void`; called as a statement in the inner factory before returning state
 - `broadcast(message)` — delivers a message to all currently-mounted instances of a store type (fire-and-forget). Is a no-op server-side.
 - Instance registration: `defineStore` maintains a `Map<symbol, StoreInstance>` of mounted instances. `StoreProvider` registers/unregisters in `useEffect`. `useCreateClientStore` does the same.
 - `STORE_INTERNALS` symbol key on `StoreInstance` holds `{ identifier, messageHandlers }` — intended to be private to the library
@@ -67,7 +74,6 @@ Stores are scoped to React context trees, so components in different roots can't
 ### Open questions
 - Client-side re-fetching / "going pending again" — not yet designed
 - Export API: hooks on `StoreDefinition` object vs named exports from store modules
-- Naming: `factory` vs `init` are too similar; `storeFactory`/`stateCreator` may be clearer
 - Whether to offer a flattened single-lambda API for ergonomics alongside the two-layer version
 - Cross-root communication beyond broadcast (request/response, store-to-store subscriptions)
 

@@ -5,9 +5,9 @@ import {
   type Dispatch,
   type AnyAction,
 } from "redux";
-import type {Adapter, StoreInit, StoreFactory} from "../core/adapter";
-import {defineIsoStore} from "../core/define";
-import {type IsoStoreDefinition} from "../core/types";
+import type {Adapter, StoreInit, StoreFactory} from "../../core/adapter";
+import {defineIsoStore} from "../../core/define";
+import {type IsoStoreDefinition} from "../../core/types";
 
 const ISO_SET_STATE = '@@isostores/SET_STATE';
 
@@ -22,7 +22,7 @@ const adapter: Adapter<ReduxStore<any>> = <State>(store: ReduxStore<State>) => (
 
 type ReduxStoreInit<State> = (dispatch: Dispatch, getState: () => State) => Reducer<State>;
 
-export const defineReduxIsoStore = <Opts, State, Message>(
+export const defineReduxIsoStore = <Opts, State, Message = never>(
   init: StoreInit<Opts, State, Message, ReduxStoreInit<State>>
 ): IsoStoreDefinition<Opts, State, Message> => {
   const factory: StoreFactory<Opts, State, Message, ReduxStore<State>> = (opts, waitFor, onMessage) => {
