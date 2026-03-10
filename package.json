@@ -1,5 +1,5 @@
 {
-  "name": "zustand-server",
+  "name": "isomorphic-stores",
   "private": true,
   "peerDependencies": {
     "typescript": "^5",
