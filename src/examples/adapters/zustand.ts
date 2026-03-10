@@ -7,7 +7,7 @@ import { useStore as useNativeZustandStore } from "zustand/react";
 import {
   defineIsoStore,
   type StoreInit,
-  type StoreFactory,
+  type NativeStoreFactory,
 } from "../../adapter";
 
 const emptyZStore = createNativeZustandStore<Record<string, never>>(() => ({}));
@@ -15,8 +15,8 @@ const emptyZStore = createNativeZustandStore<Record<string, never>>(() => ({}));
 export const defineZustandIsoStore = <Opts, State, Message = never>(
   init: StoreInit<Opts, State, Message, NativeZustandStoreInit<State>>
 ) => {
-  type Factory = StoreFactory<Opts, State, Message, NativeZustandStore<State>>;
-  const factory: Factory = (opts, waitFor, onMessage) => createNativeZustandStore<State>(init(opts, waitFor, onMessage));
+  type ZustandStoreFactory = NativeStoreFactory<Opts, State, Message, NativeZustandStore<State>>;
+  const factory: ZustandStoreFactory = (opts, waitFor, onMessage) => createNativeZustandStore<State>(init(opts, waitFor, onMessage));
 
   const getHook = (getNativeStore: () => NativeZustandStore<State>) => <U>(selector: (s: State) => U): U => useNativeZustandStore(getNativeStore(), selector);
 

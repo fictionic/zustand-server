@@ -9,7 +9,7 @@ import { useSyncExternalStore } from "react";
 import {
   defineIsoStore,
   type StoreInit,
-  type StoreFactory,
+  type NativeStoreFactory,
 } from "../../adapter";
 
 const ISO_SET_STATE = '@@isostores/SET_STATE';
@@ -21,7 +21,7 @@ type ReduxStoreInit<State> = (dispatch: Dispatch, getState: () => State) => Redu
 export const defineReduxIsoStore = <Opts, State, Message = never>(
   init: StoreInit<Opts, State, Message, ReduxStoreInit<State>>
 ) => {
-  const factory: StoreFactory<Opts, State, Message, ReduxStore<State>> = (opts, waitFor, onMessage) => {
+  const factory: NativeStoreFactory<Opts, State, Message, ReduxStore<State>> = (opts, waitFor, onMessage) => {
     const makeReducer = init(opts, waitFor, onMessage);
     let storeRef: ReduxStore<State>;
     const realReducer = makeReducer(

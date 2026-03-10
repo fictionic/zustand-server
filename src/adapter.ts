@@ -1,2 +1,2 @@
 export { defineIsoStore } from './core/define';
-export type { Adapter, StoreInit, StoreFactory } from './core/adapter';
+export type { Adapter, StoreInit, NativeStoreFactory } from './core/adapter';

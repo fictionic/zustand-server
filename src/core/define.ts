@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import type {Adapter, StoreFactory} from "./adapter";
+import type {Adapter, NativeStoreFactory} from "./adapter";
 import {getStoreProvider} from "./StoreProvider";
 import {
   STORE_DEFINITION_INTERNALS,
@@ -34,7 +34,7 @@ type BaseNativeHook = <S>(...args: any) => S;
 type BaseNativeClientHook = <S>(...args: any) => S | undefined;
 
 export const defineIsoStore = <Opts, State, Message, NativeStore, NativeHook extends BaseNativeHook, NativeClientHook extends BaseNativeClientHook>(
-  factory: StoreFactory<Opts, State, Message, NativeStore>,
+  factory: NativeStoreFactory<Opts, State, Message, NativeStore>,
   adapter: Adapter<State, NativeStore, NativeHook, NativeClientHook>,
 ): IsoStoreDefinition<Opts, Message, NativeStore, NativeHook, NativeClientHook> => {
   const definitionId = Symbol();
