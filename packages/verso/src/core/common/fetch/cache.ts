@@ -17,7 +17,7 @@ export type CacheEntryData = {
   requesters: number;
 };
 
-type CachedResponse = {
+export type CachedResponse = {
   text: string;
   isBinary?: boolean;
   status: number;
