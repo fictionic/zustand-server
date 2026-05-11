@@ -8,89 +8,94 @@ import type {NavigationResult, Navigator} from "../common/navigator";
 import {cancelAbortTimeout, getAbortPromise, initAbortController, startAbortTimeout} from "./abort";
 import {getHandlerResponse} from "./response";
 
-export async function handleRequest(
-  req: Request,
-  navigator: Navigator,
-  settings: ServerSettings,
-) {
-  const responsePromise = startRequest(async () => {
-    startRequestClock();
-    initAbortController(req.signal);
-    const loopback = (r: Request) => handleRequest(r, navigator, settings);
-    Fetch.serverInit(req, settings, loopback);
+export type MakeHandleRequest = (navigator: Navigator, settings: ServerSettings) => HandleRequest;
 
-    const headers = new Headers();
-    function concatHeaders(newHeaders: Headers) {
-      newHeaders.forEach((value, name) => {
-        headers.append(name, value);
-      });
-    }
+export type HandleRequest = (request: Request) => Promise<Response>;
 
-    const cookies = new ServerCookies(req);
+export const makeHandleRequest: MakeHandleRequest = (navigator, settings): HandleRequest => {
+  async function handleRequest(
+    req: Request,
+  ) {
+    const responsePromise = startRequest(async () => {
+      startRequestClock();
+      initAbortController(req.signal);
+      Fetch.serverInit(req, settings, handleRequest);
 
-    const { routerTimeout } = settings;
-    startAbortTimeout(new Error("[verso] navigation timeout"), routerTimeout);
-    let navigation: NavigationResult;
-    try {
-      navigation = await Promise.race([
-        navigator.navigate(req),
-        getAbortPromise(),
-      ]);
-    } finally {
-      cancelAbortTimeout();
-    }
+      const headers = new Headers();
+      function concatHeaders(newHeaders: Headers) {
+        newHeaders.forEach((value, name) => {
+          headers.append(name, value);
+        });
+      }
 
-    switch (navigation.kind) {
-      case 'not-found':
-        return notFound();
-      case 'error':
-        throw new Error('[verso] navigation error');
-      case 'directive':
-        break;
-      default:
-        navigation satisfies never;
-        throw new Error('unexpected navigation result');
-    }
+      const cookies = new ServerCookies(req);
 
-    const { status, location: locationDirective, handler } = navigation;
+      const { routerTimeout } = settings;
+      startAbortTimeout(new Error("[verso] navigation timeout"), routerTimeout);
+      let navigation: NavigationResult;
+      try {
+        navigation = await Promise.race([
+          navigator.navigate(req),
+          getAbortPromise(),
+        ]);
+      } finally {
+        cancelAbortTimeout();
+      }
 
-    const cookieHeaders = cookies.consumeHeaders();
-    concatHeaders(cookieHeaders);
+      switch (navigation.kind) {
+        case 'not-found':
+          return notFound();
+        case 'error':
+          throw new Error('[verso] navigation error');
+        case 'directive':
+          break;
+        default:
+          navigation satisfies never;
+          throw new Error('unexpected navigation result');
+      }
 
-    if (locationDirective) {
-      headers.append('Location', locationDirective);
-    }
+      const { status, location: locationDirective, handler } = navigation;
 
-    if (!handler) {
-      return new Response(null, {
+      const cookieHeaders = cookies.consumeHeaders();
+      concatHeaders(cookieHeaders);
+
+      if (locationDirective) {
+        headers.append('Location', locationDirective);
+      }
+
+      if (!handler) {
+        return new Response(null, {
+          status,
+          headers,
+        });
+      }
+
+      const elapsedTime = getElapsedRequestTime();
+      const { responseTimeout } = settings;
+      const remainingTime = Math.max(0, responseTimeout - elapsedTime);
+      startAbortTimeout(new Error("[verso] response timeout"), remainingTime)
+      // the responder is responsible for canceling the timeout on response end.
+      // (we can't do it, because the body might be a stream)
+      const handlerHeaders = handler.getHeaders();
+      concatHeaders(handlerHeaders);
+      const { getContentType, getBody } = getHandlerResponse(handler);
+      headers.append('Content-Type', getContentType());
+      const body = await getBody();
+      return new Response(body, {
         status,
         headers,
       });
+    })
+    try {
+      return await responsePromise;
+    } catch (error) {
+      console.error("[verso] error in handleRequest", error);
+      return internalServerError();
     }
-
-    const elapsedTime = getElapsedRequestTime();
-    const { responseTimeout } = settings;
-    const remainingTime = Math.max(0, responseTimeout - elapsedTime);
-    startAbortTimeout(new Error("[verso] response timeout"), remainingTime)
-    // the responder is responsible for canceling the timeout on response end.
-    // (we can't do it, because the body might be a stream)
-    const handlerHeaders = handler.getHeaders();
-    concatHeaders(handlerHeaders);
-    const { getContentType, getBody } = getHandlerResponse(handler);
-    headers.append('Content-Type', getContentType());
-    const body = await getBody();
-    return new Response(body, {
-      status,
-      headers,
-    });
-  })
-  try {
-    return await responsePromise;
-  } catch (error) {
-    console.error("[verso] error in handleRequest", error);
-    return internalServerError();
   }
+  return handleRequest;
 }
+
 
 function notFound(): Response {
   return new Response(html404, {
@@ -105,5 +110,3 @@ function internalServerError(): Response {
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
   });
 }
-
-export type HandleRequest = typeof handleRequest;

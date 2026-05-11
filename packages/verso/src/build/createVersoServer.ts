@@ -1,15 +1,15 @@
 import type {BundleResult} from "../build/bundle";
 import type {Stylesheet} from "../core/common/handler/Page";
 import type {MiddlewareDefinition} from "../core/common/handler/Middleware";
-import {handleRequest} from "../core/server/handleRequest";
 import {createViteBundleLoader} from "./ViteBundleLoader";
 import type {RoutesMap, ServerSettings} from './config';
 import type {RouteHandlerDefinition} from "../core/common/handler/RouteHandler";
 import {createNavigator, type GetRouteHandler} from "../core/common/navigator";
 import {MANIFEST_PATH} from "./constants";
+import {type HandleRequest, makeHandleRequest} from "../core/server/handleRequest";
 
 export interface VersoServer {
-  serve: (req: Request) => Promise<Response>;
+  serve: HandleRequest;
 }
 
 type RouteHandlers = {
@@ -61,6 +61,8 @@ export async function createVersoServer(
   const getRouteHandler: GetRouteHandler = (routeName: string) => routeHandlers[routeName] ?? null;
   const navigator = createNavigator(routes, getRouteHandler, globalMiddleware);
 
+  const handleRequest = makeHandleRequest(navigator, serverSettings);
+
   return {
     serve: (req: Request) => {
       const url = new URL(req.url);
@@ -73,7 +75,7 @@ export async function createVersoServer(
         }));
       }
 
-      return handleRequest(req, navigator, serverSettings);
+      return handleRequest(req);
     }
   };
 }

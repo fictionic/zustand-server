@@ -14,7 +14,7 @@ import { toURL, toWebRequest, sendWebResponse } from './node-utils';
 import { getEntrypointGenerator, type EntrypointGenerator } from './entrypoint';
 import { createJiti, type Jiti } from 'jiti';
 import { html500 } from '../core/server/errorPages';
-import type {HandleRequest} from '../core/server/handleRequest';
+import type {HandleRequest, MakeHandleRequest} from '../core/server/handleRequest';
 import type { MiddlewareDefinition } from '../core/common/handler/Middleware';
 import {createNavigator} from '../core/common/navigator';
 
@@ -248,7 +248,7 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
 
         const entryUrl = `/@id/__x00__${CLIENT_ENTRY_VIRTUAL_ID}`;
 
-        const handleRequest = await importWithVite<HandleRequest>(vite, SERVER_PATH);
+        const makeHandleRequest = await importWithVite<MakeHandleRequest>(vite, SERVER_PATH);
 
         const routeScripts: Record<string, string[]> = {};
         for (const routeName of Object.keys(routes)) {
@@ -283,6 +283,8 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
         };
         const navigator = createNavigator(routes, getRouteHandler, globalMiddleware);
 
+        const handleRequest = makeHandleRequest(navigator, serverSettings);
+
         return () => {
           vite.middlewares.use(async (req, res) => {
             try {
@@ -306,11 +308,7 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
               }
 
               const request = toWebRequest(req, res, url);
-              const response = await handleRequest(
-                request,
-                navigator,
-                serverSettings,
-              );
+              const response = await handleRequest(request);
               await sendWebResponse(res, response);
             } catch (e) {
               console.error('[verso]', e);
