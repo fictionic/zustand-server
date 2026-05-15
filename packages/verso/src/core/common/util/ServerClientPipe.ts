@@ -58,6 +58,9 @@ export const createPipe = <Schema extends PipeSchema>(pipeName: string) => ({
         }
         pipe.fns.handlers[fnName] = callback;
       },
+      destroy: () => {
+        delete (window as any)[pipeName];
+      },
       _impl: pipe, // for unit tests
     };
   },

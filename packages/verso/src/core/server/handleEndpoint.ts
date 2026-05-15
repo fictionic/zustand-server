@@ -1,5 +1,5 @@
 import type {StandardizedEndpoint} from "../common/handler/Endpoint";
-import {cancelAbortTimeout, getAbortPromise, getAbortSignal} from "./abort";
+import {cancelAbortTimeout, getAbortPromise, getAbortSignal} from "../common/abort";
 import type {HandlerResponse} from "./response";
 
 export function handleEndpoint(endpoint: StandardizedEndpoint): HandlerResponse {

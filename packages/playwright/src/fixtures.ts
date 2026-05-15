@@ -19,8 +19,8 @@ export const versoFixtures = {
     const patchedWaitForLoadState = async (state: LoadState = STATE_HYDRATED, options?: WaitForLoadStateOptions) => {
       if (state === STATE_HYDRATED) {
         await realWaitForLoadState('domcontentloaded', options);
-        await page.waitForFunction(() => !!(window as any).CLIENT_READY_DFD);
-        await page.evaluate(async () => await (window as any).CLIENT_READY_DFD!.promise);
+        await page.waitForFunction(() => !!window.__waitForVersoNavigation);
+        await page.evaluate(async () => await window.__waitForVersoNavigation());
       } else {
         await realWaitForLoadState(state, options);
       }

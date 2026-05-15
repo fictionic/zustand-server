@@ -5,8 +5,9 @@ import {html404, html500} from "./errorPages";
 import type {ServerSettings} from "../../build/config";
 import {getElapsedRequestTime, startRequestClock} from "./clock";
 import type {NavigationResult, Navigator} from "../common/navigator";
-import {cancelAbortTimeout, getAbortPromise, initAbortController, startAbortTimeout} from "./abort";
+import {cancelAbortTimeout, getAbortPromise, initAbortController, startAbortTimeout} from "../common/abort";
 import {getHandlerResponse} from "./response";
+import {getStash} from "./stash";
 
 export type MakeHandleRequest = (navigator: Navigator, settings: ServerSettings) => HandleRequest;
 
@@ -20,6 +21,8 @@ export const makeHandleRequest: MakeHandleRequest = (navigator, settings): Handl
       startRequestClock();
       initAbortController(req.signal);
       Fetch.serverInit(req, settings, handleRequest);
+
+      getStash().request = req;
 
       const headers = new Headers();
       function concatHeaders(newHeaders: Headers) {

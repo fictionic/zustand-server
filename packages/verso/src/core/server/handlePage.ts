@@ -1,11 +1,12 @@
 import {Fetch} from "../common/fetch/Fetch";
-import {FETCH_CACHE_KEY, FN_ABORT_HYDRATION, FN_HYDRATE_ROOTS_UP_TO, FN_RECEIVE_LATE_DATA_ARRIVAL, VersoPipe} from "../common/VersoPipe";
+import {FETCH_CACHE_KEY, FN_ABORT_HYDRATION, FN_HYDRATE_ROOTS_UP_TO, FN_RECEIVE_LATE_DATA_ARRIVAL, FN_SIGNAL_ROOTS_COMPLETE, REQUEST_METHOD_KEY, VersoPipe} from "../common/VersoPipe";
 import {getScriptAttrs, type Script, type StandardizedPage} from "../common/handler/Page";
 import {writeBody} from "./writeBody";
 import {renderOpenTag, writeHeader} from "./writeHeader";
 import type {CacheableRequest, CacheEntryData} from "../common/fetch/cache";
 import type {HandlerResponse} from "./response";
-import {cancelAbortTimeout, didAbort} from "./abort";
+import {cancelAbortTimeout, didAbort} from "../common/abort";
+import {getStash} from "./stash";
 
 export function handlePage(page: StandardizedPage): HandlerResponse {
   const { readable, writable } = new TransformStream<Uint8Array>();
@@ -49,6 +50,8 @@ export function handlePage(page: StandardizedPage): HandlerResponse {
 
     await writeBody(page, write, onRoot, onTheFold);
 
+    signalRootsComplete();
+
     if (!haveBootstrapped) {
       // if TheFold wasn't declared, then it's after the last root
       await onTheFold(lastRootIndex + 1);
@@ -77,6 +80,8 @@ export function handlePage(page: StandardizedPage): HandlerResponse {
   async function bootstrapClient(theFoldIndex: number) {
     const fetchCache = Fetch.getCache().server().dehydrate();
     writeablePipe.writeValue(FETCH_CACHE_KEY, fetchCache);
+    const method = getStash().request.method;
+    writeablePipe.writeValue(REQUEST_METHOD_KEY, method);
     for (const script of [...await page.getSystemScripts(), ...page.getScripts()]) {
       write(renderScript(script));
     }
@@ -94,6 +99,10 @@ export function handlePage(page: StandardizedPage): HandlerResponse {
         flush();
       })
     );
+  }
+
+  function signalRootsComplete() {
+    writeablePipe.callFn(FN_SIGNAL_ROOTS_COMPLETE, []);
   }
 
   function receiveLateArrival(request: CacheableRequest, data: CacheEntryData) {

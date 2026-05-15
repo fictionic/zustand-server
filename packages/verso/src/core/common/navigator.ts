@@ -42,7 +42,7 @@ export function createNavigator(routes: RoutesMap, getRouteHandler: GetRouteHand
         console.error(`[verso] no handler for route ${routeName}`);
         return { kind: 'error' };
       }
-      const versoRequest = new VersoRequest(url, route.params);
+      const versoRequest = new VersoRequest(url, req.method, route.params);
       const config = new MiddlewareConfig();
       const ctx = createCtx(config, versoRequest, route);
       const chain = createHandlerChain(handler, globalMiddleware, config, ctx);

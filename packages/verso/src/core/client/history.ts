@@ -1,6 +1,6 @@
 import type {NavigateOptions} from "./controller"
 
-type OnPopState = (url: string, options: NavigateOptions) => void;
+export type OnPopState = (url: string, options: NavigateOptions) => void;
 
 export type NavigationDirection = 'PUSH' | 'POP';
 

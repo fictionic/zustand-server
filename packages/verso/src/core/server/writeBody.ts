@@ -1,10 +1,10 @@
 import { renderToString } from 'react-dom/server';
 import { scheduleRender } from '../common/components/Root';
-import {TOKEN, tokenizeElements, type PageElementToken} from '../common/elementTokenizer';
+import {TOKEN, tokenizeElements, type PageElementToken} from '../common/tokenizeElements';
 import {renderContainerOpen, renderContainerClose} from '../common/components/RootContainer';
 import {PAGE_ELEMENT_TOKEN_ID_ATTR, PAGE_ROOT_ELEMENT_ATTR} from '../common/constants';
 import type {StandardizedPage} from '../common/handler/Page';
-import {getAbortPromise} from './abort';
+import {getAbortPromise} from '../common/abort';
 
 const TOKEN_STATUS = {
   PENDING: 'PENDING',
@@ -67,6 +67,7 @@ export async function writeBody(
             rootInnerHTML = '';
           }
           rendered.html = `<div ${PAGE_ELEMENT_TOKEN_ID_ATTR}="${i}" ${PAGE_ROOT_ELEMENT_ATTR}>${rootInnerHTML}</div>\n`;
+          // TODO: move this rendering^ into Root.tsx?
           rendered.status = TOKEN_STATUS.RENDERED;
           writeRenderedTokens();
         }));
@@ -90,7 +91,7 @@ export async function writeBody(
       } else {
         if (renderedToken.status === TOKEN_STATUS.WRITTEN) {
           // this shouldn't happen. runtime invariant.
-          console.error("[renderBody] elements rendering out of order!");
+          console.error("[verso] elements rendering out of order! (?)");
         } else if (renderedToken.status === TOKEN_STATUS.TIMEOUT) {
           // nothing to render. just keep moving
         } else if (renderedToken.status === TOKEN_STATUS.RENDERED) {

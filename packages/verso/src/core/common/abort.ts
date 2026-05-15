@@ -6,7 +6,7 @@ const RLS = getRLS<{
   timeoutId: NodeJS.Timeout | undefined;
 }>();
 
-export function initAbortController(parent?: AbortSignal) {
+export function initAbortController(parent?: AbortSignal): AbortController {
   const controller = parent ? chainedController(parent) : new AbortController();
   const promise = new Promise<never>((_, reject) => {
     const doReject = () => reject(controller.signal.reason);
@@ -22,7 +22,7 @@ export function initAbortController(parent?: AbortSignal) {
   });
   RLS().controller = controller;
   RLS().promise = promise;
-
+  return controller;
 }
 
 export function getAbortSignal(): AbortSignal {

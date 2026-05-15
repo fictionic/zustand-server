@@ -1,8 +1,8 @@
 import type {FetchOrigin, ServerSettings} from '../../../build/config';
-import {getAbortSignal} from '../../server/abort';
+import {getAbortSignal} from '../abort';
 import {ServerCookies} from '../../server/ServerCookies';
 import { getRLS } from '../RequestLocalStorage';
-import { FetchCache, reifyCachedResponse, type CacheableRequest } from './cache';
+import { FetchCache, reifyCachedResponse, type CacheableRequest, type DehydratedCache } from './cache';
 import { nativeFetch } from './nativeFetch';
 import type { FetchRequestInterceptor, FetchRequestSettings, VersoFetchInit } from './types';
 
@@ -50,8 +50,12 @@ function serverInit(
   RLS().handleLoopbackRequest = loopback;
 }
 
-function clientInit() {
-  RLS().cache = new FetchCache();
+function clientInit(fetchCache?: DehydratedCache) {
+  const cache = new FetchCache();
+  if (fetchCache) {
+    cache.client().rehydrate(fetchCache);
+  }
+  RLS().cache = cache;
 }
 
 function getCache() {
@@ -186,7 +190,6 @@ function resolveRelativeUrl(interceptedUrl: string): { resolvedUrl: string, useL
 }
 
 function resolveAbortSignal(interceptedInit: VersoFetchInit = {}): VersoFetchInit {
-  if (!globalThis.IS_SERVER) return {};
   const callerSignal = interceptedInit.signal;
   const versoSignal = getAbortSignal();
   return {
