@@ -1,2 +1,2 @@
-import { handleRequest } from '../core/server/handleRequest';
-export default handleRequest;
+import { makeHandleRequest } from '../core/server/handleRequest';
+export default makeHandleRequest;
