@@ -1,12 +1,12 @@
 import {getLinkTagAttrs, getMetaTagAttrs, setNodeAttrs, type MetaTag} from "../common/handler/Page";
-import {createRoot, hydrateRoot, type Root} from "react-dom/client";
+import {createRoot, hydrateRoot, type Root as ReactRoot} from "react-dom/client";
 import {TOKEN, tokenizeElements} from "../common/tokenizeElements";
-import {scheduleRender} from "../common/components/Root";
+import {scheduleRootRender, setRootAttrs} from "../common/components/Root";
 import {PAGE_ELEMENT_TOKEN_ID_ATTR, PAGE_HEADER_LINK_ELEMENT_ATTR, PAGE_ROOT_ELEMENT_ATTR} from "../common/constants";
 import {FETCH_CACHE_KEY, FN_ABORT_HYDRATION, FN_HYDRATE_ROOTS_UP_TO, FN_RECEIVE_LATE_DATA_ARRIVAL, FN_SIGNAL_ROOTS_COMPLETE, REQUEST_METHOD_KEY, VersoPipe} from "../common/VersoPipe";
 import {Fetch} from "../common/fetch/Fetch";
 import {startClientRequest} from "../common/RequestLocalStorage";
-import {applyContainerProps} from "../common/components/RootContainer";
+import {setContainerAttrs} from "../common/components/RootContainer";
 import {StyleTransitioner} from "./styles";
 import { ScriptTransitioner } from "./scripts";
 import type {BundleManifest} from "../../build/bundle";
@@ -14,8 +14,9 @@ import {HistoryManager, type NavigationDirection, type OnPopState} from "./histo
 import type {ReactElement} from "react";
 import {flushSync} from "react-dom";
 import type {Navigator} from "../common/navigator";
-import {initAbortController} from "../common/abort";
+import {getAbortSignal, initAbortController} from "../common/abort";
 import {ClientNavigationManager, type StartNavigation, type CommitNavigation} from "./navigation";
+import {PageElementProcessor} from "../common/PageElementProcessor";
 
 let self: ClientController | null = null;
 export function getClientController(): ClientController {
@@ -30,14 +31,14 @@ export interface NavigateOptions {
 }
 
 export class ClientController {
-  private reactRoots: Root[];
+  private reactRoots: Set<ReactRoot>; // so we can unmount them on navigation
   private styleTransitioner: StyleTransitioner;
   private scriptTransitioner: ScriptTransitioner;
   private historyManager: HistoryManager;
   private navigationManager: ClientNavigationManager;
 
   constructor(navigator: Navigator, manifest: BundleManifest | null) {
-    this.reactRoots = [];
+    this.reactRoots = new Set();
     this.styleTransitioner = new StyleTransitioner(manifest);
     this.scriptTransitioner = new ScriptTransitioner();
     const onPopState: OnPopState = (url, options) => this.navigate(url, 'POP', options);
@@ -105,12 +106,12 @@ export class ClientController {
           rootHydrationDfds[i] = hydrationDfd;
           rootDomNodeDfds[i] = Promise.withResolvers();
           // start rendering below-the-fold roots before their dom nodes have streamed in
-          const renderPromise = scheduleRender(token.element);
+          const renderPromise = scheduleRootRender(token.element);
           rootDomNodeDfds[i].promise.then(async (node) => {
             try {
               const reactElement = await renderPromise;
               const reactRoot = hydrateRoot(node, reactElement);
-              this.reactRoots.push(reactRoot);
+              this.reactRoots.add(reactRoot);
               hydrationDfd.resolve();
             } catch (e) {
               console.error(`[verso] error hydrating root ${i}`, e);
@@ -182,7 +183,7 @@ export class ClientController {
         }),
         interrupt: () => {
           abortController.abort();
-          // TODO
+          // TODO anything else to do here?
         },
       };
     };
@@ -194,6 +195,7 @@ export class ClientController {
 
       // =header=
       document.title = page.getTitle() ?? ''; // no way to unset title; technically sort of non-isomorphic
+
       // update base tag
       const base = page.getBase();
       let baseNode = document.head.querySelector('base');
@@ -207,6 +209,7 @@ export class ClientController {
         if (base.href) baseNode.href = base.href;
         if (base.target) baseNode.target = base.target;
       }
+
       // update links. can just blindly throw away old ones and add new ones
       document.querySelectorAll(`[${PAGE_HEADER_LINK_ELEMENT_ATTR}]`).forEach(node => {
         node.parentNode?.removeChild(node);
@@ -220,15 +223,18 @@ export class ClientController {
         setNodeAttrs(node, getLinkTagAttrs(link));
         document.head.appendChild(node);
       });
+
       // update meta tags. throw away old ones and add new ones
       document.head.querySelectorAll('meta').forEach(node => node.parentNode?.removeChild(node));
       page.getMetaTags().forEach((tag) => renderMetaTag(tag));
+
       // update styles. have to take care to avoid FOUC
       const stylesheets = [
         ...await page.getSystemStylesheets(),
         ...page.getStylesheets(),
       ];
       const cleanupPreviousStyles = await this.styleTransitioner.transitionStyles(routeName, stylesheets);
+
       // update scripts. track each one and only add new ones
       const scripts = [
         ...await page.getSystemScripts(),
@@ -237,55 +243,82 @@ export class ClientController {
       this.scriptTransitioner.transitionScripts(scripts);
 
       // =body=
+
+      // classname
       const newBodyClasses = await page.getBodyClasses();
       document.body.className = newBodyClasses.join(' ');
-      // clear away the old roots
-      // TODO: reuseDom
+
+      // elements
+      // first blow away the old roots -- TODO: reuseDom
       this.reactRoots.forEach((root) => root.unmount());
-      this.reactRoots.splice(0, this.reactRoots.length);
+      this.reactRoots.clear();
       document.body.innerHTML = ''; // TODO put all roots in a supercontainer in case I want to add getBodyStartContent
-      // write new roots
-      const tokens = tokenizeElements(page.getElements());
-      // we need them to be mounted in the correct order.
-      // kick off scheduleRender right away, but don't mount a root
-      // until all previous roots have mounted
-      type PendingRoot = { renderPromise: Promise<ReactElement>, reactRoot: Root };
-      const pendingRoots: PendingRoot[] = [];
+
+      // then render and mount the new ones. use the same algorithm as the server render.
       let currentContainer: Node = document.body;
-      tokens.forEach((token) => {
-        switch (token.type) {
-          case TOKEN.CONTAINER_OPEN: {
-            const newContainer = document.createElement('div');
-            applyContainerProps(newContainer, token.element.props);
-            currentContainer.appendChild(newContainer);
-            currentContainer = newContainer;
-            break;
-          }
-          case TOKEN.CONTAINER_CLOSE:
-            currentContainer = currentContainer.parentNode!;
-            break;
-          case TOKEN.THE_FOLD:
-            // this is a no-op clientside
-            break;
-          case TOKEN.ROOT: {
-            const newNode = document.createElement('div');
-            currentContainer.appendChild(newNode);
-            const reactRoot = createRoot(newNode);
-            this.reactRoots.push(reactRoot);
-            const renderPromise = scheduleRender(token.element);
-            pendingRoots.push({ renderPromise, reactRoot });
-            break;
-          }
-        }
+      type RenderedElement = |
+        {
+        kind: 'open';
+        divElement: HTMLElement;
+      } | {
+        kind: 'close';
+      } | {
+        kind: 'root';
+        rendered: { rootElement: ReactElement, index: number };
+      };
+      const processor = new PageElementProcessor<RenderedElement>({
+        renderContainerOpen: (element, index) => {
+          const divElement = document.createElement('div');
+          setContainerAttrs(divElement, element.props, index);
+          return {
+            kind: 'open' as const,
+            divElement,
+          };
+        },
+        renderContainerClose: () => {
+          return { kind: 'close' };
+        },
+        renderRootElement: (rootElement, index) => {
+          return { kind: 'root', rendered: { rootElement, index } };
+        },
+        consumeRenderedElements: (elements) => {
+          elements.forEach((element) => {
+            if (getAbortSignal().aborted) return; // another navigation is about to run
+            switch (element.kind) {
+              case 'open': {
+                currentContainer.appendChild(element.divElement);
+                currentContainer = element.divElement;
+                break;
+              }
+              case 'close': {
+                currentContainer = currentContainer.parentNode!;
+                break;
+              }
+              case 'root': {
+                const { rootElement, index } = element.rendered;
+                const newNode = document.createElement('div');
+                setRootAttrs(newNode, index)
+                currentContainer.appendChild(newNode);
+                const reactRoot = createRoot(newNode);
+                this.reactRoots.add(reactRoot);
+                try {
+                  // without flushSync, the concurrent scheduler could mount roots out of order (I think)
+                  flushSync(() => reactRoot.render(rootElement));
+                } catch (err) {
+                  console.error("[verso] error rendering root", err);
+                }
+                break;
+              }
+              default:
+                element satisfies never;
+            }
+          });
+        },
       });
 
-      await pendingRoots.reduce(async (previous: Promise<void>, { renderPromise, reactRoot }) => {
-        await previous;
-        const rootElement = await renderPromise
-        return flushSync(() => reactRoot.render(rootElement));
-        // without flushSync, the concurrent scheduler could mount roots out of order (I think)
-      }, Promise.resolve());
+      await processor.process(page.getElements());
 
+      // finally clean up any unneeded stylesheets from the last route
       cleanupPreviousStyles();
     }
 

@@ -1,4 +1,5 @@
 import React, {createContext, StrictMode, useContext, type ReactElement, type ReactNode} from 'react';
+import {PAGE_ELEMENT_TOKEN_ID_ATTR, PAGE_ROOT_ELEMENT_ATTR} from '../constants';
 
 const ROOT_COMPONENT = Symbol('verso.RootComponent');
 
@@ -48,11 +49,15 @@ export const Root = makeRootComponent<RootProps>(RootPassthrough, (p) => p);
 const NO_ROOT = Symbol('verso.NoRoot');
 const RootContext = createContext<WhenResult>(NO_ROOT);
 
-export async function scheduleRender(element: RootElementType): Promise<ReactElement> {
+export async function scheduleRootRender(element: RootElementType): Promise<ReactElement> {
   const { deriveRootAPI } = element.type[ROOT_COMPONENT];
   const { when } = deriveRootAPI(element.props);
   const promise = when ?? Promise.resolve();
-  const data = await promise;
+  const data = await promise
+    .catch((err) => {
+      console.error("[verso] rejection from Root 'when' promise; using null data", err);
+      return null;
+    });
   return (
     <StrictMode>
       <RootContext.Provider value={data}>
@@ -68,4 +73,14 @@ export function useRootData<T>(): T {
     throw new Error('[verso] useRootData() called outside a Root!');
   }
   return value as T;
+}
+
+export function renderRootToString(index: number, innerHtml: string) {
+  return `<div ${PAGE_ELEMENT_TOKEN_ID_ATTR}="${index}" ${PAGE_ROOT_ELEMENT_ATTR}>${innerHtml}</div>\n`;
+}
+
+// for client transitions
+export function setRootAttrs(element: HTMLElement, index: number) {
+  element.setAttribute(PAGE_ELEMENT_TOKEN_ID_ATTR, String(index));
+  element.setAttribute(PAGE_ROOT_ELEMENT_ATTR, '');
 }

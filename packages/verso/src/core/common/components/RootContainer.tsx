@@ -29,8 +29,13 @@ export function renderContainerOpen(element: RootContainerElementType, index: nu
   return html.slice(0, -(DIV_CLOSE.length)) + '\n';
 }
 
+export function renderContainerClose(): string {
+  return `${DIV_CLOSE}\n`;
+}
+
 // for client transitions
-export function applyContainerProps(el: HTMLElement, props: RootContainerProps) {
+export function setContainerAttrs(el: HTMLElement, props: RootContainerProps, index: number) {
+  el.setAttribute(PAGE_ELEMENT_TOKEN_ID_ATTR, String(index));
   for (const [key, value] of Object.entries(props)) {
     if (key === 'children' || key.startsWith('on') || value == null) {
       // TODO: more props to skip? ideally we should match exactly what renderToString does
@@ -48,6 +53,3 @@ export function applyContainerProps(el: HTMLElement, props: RootContainerProps) 
   }
 }
 
-export function renderContainerClose(): string {
-  return `${DIV_CLOSE}\n`;
-}
