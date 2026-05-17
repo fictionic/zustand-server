@@ -1,11 +1,9 @@
 import {getRLS} from "../common/RequestLocalStorage";
 
 const RLS = getRLS<{
-  stash: {
-    request: Request;
-  };
+  request: Request;
 }>();
 
 export function getStash() {
-  return RLS().stash;
+  return RLS();
 }
