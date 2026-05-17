@@ -36,6 +36,7 @@ export function handlePage(page: StandardizedPage): HandlerResponse {
 
     let lastRootIndex = 0;
     function onRoot(index: number) {
+      flush();
       if (haveBootstrapped) {
         hydrateRootsUpTo(index);
         flush();
