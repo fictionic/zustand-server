@@ -2,7 +2,7 @@ export const PAGE_HEADER_STYLE_ELEMENT_ATTR = 'data-verso-style-element';
 export const PAGE_HEADER_LINK_ELEMENT_ATTR = 'data-verso-link-element';
 export const PAGE_HEADER_SCRIPT_ELEMENT_ATTR = 'data-verso-script-element';
 export const PAGE_ROOT_ELEMENT_ATTR = 'data-verso-root';
-export const PAGE_ELEMENT_TOKEN_ID_ATTR = 'data-verso-element-token-id';
+export const PAGE_ELEMENT_TOKEN_IDX_ATTR = 'data-verso-element-token-idx';
 
 // Dev-only endpoint: returns the CSS stylesheet list for a named route, so the
 // client can transition stylesheets during programmatic navigation the same way

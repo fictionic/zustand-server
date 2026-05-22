@@ -10,8 +10,20 @@ export type TaskRunnerOpts = {
   onIdle: () => void;
 };
 
+const INTERRUPTED: unique symbol = Symbol();
+
+type HandleRef = {
+  handle: TaskHandle;
+  interrupted: boolean;
+};
+
+/**
+ * Runs interruptible tasks. If a new task needs to run while
+ * an existing task is running, the existing task will be interrupted,
+ * and when it finishes, the new task will start.
+ */
 export class TaskRunner {
-  private current: TaskHandle | null;
+  private current: HandleRef | null;
   private next: Task | null;
   private activeCount: number;
   private onActive?: () => void;
@@ -26,34 +38,57 @@ export class TaskRunner {
     this.onIdle = onIdle;
   }
 
+  /**
+   * Run a task.
+   * If the task is interrupted, the function rejects with a sentinel
+   * that can be detected with isInterruption().
+   */
   async runTask(task: Task) {
     if (this.activeCount === 0) this.onActive?.();
     this.activeCount++;
     try {
       if (this.current) {
         const { current } = this;
-        current.interrupt();
+        current.handle.interrupt();
+        current.interrupted = true;
         this.next = task;
-        await silenced(current.promise);
+        await silenced(current.handle.promise);
         if (this.next !== task) {
-          return Promise.reject(new Error('interrupted'));
+          return Promise.reject(INTERRUPTED);
         }
         // now it's our turn to run
         this.next = null;
       }
       // start running the task
       const handle = task();
-      this.current = handle;
-      await handle.promise
-        // propagate errors up to the caller
-        .finally(() => {
-          this.current = null;
-        });
+      const ref: HandleRef = { handle, interrupted: false };
+      this.current = ref;
+      try {
+        await handle.promise
+          .catch((err) => {
+            if (!ref.interrupted) {
+              // propagate external errors up to the caller...
+              throw err;
+            }
+            // ...unless the task was interrupted. we'll swallow and throw our own sentinel,
+            // since the consumer only cares that it was interrupted.
+          });
+        if (ref.interrupted) {
+          throw INTERRUPTED;
+        }
+      } finally {
+        this.current = null;
+      }
     } finally {
       this.activeCount--;
       if (this.activeCount === 0) this.onIdle?.();
     }
   }
+
+  isInterruption(e: any): boolean {
+    return e === INTERRUPTED;
+  }
+
 }
 
 function silenced(p: Promise<void>): Promise<void> {

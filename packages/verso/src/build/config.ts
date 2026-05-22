@@ -1,5 +1,6 @@
 export interface VersoConfig {
   server?: Partial<ServerSettings>;
+  client?: Partial<ClientSettings>;
   middleware?: string[];
   routes: RoutesMap;
 }
@@ -9,6 +10,21 @@ export type FetchOrigin = 'request-host' | 'loopback';
 // note that these are currently serialized into the server entrypoint.
 // non-serializable values cannot be added
 export type ServerSettings = {
+  /**
+   * TODO
+   *
+   * Default: ['localhost']
+   */
+  allowedHosts: string[];
+  /**
+   * Whether to trust the X-Forwarded-Proto and X-Forwarded-Host headers.
+   * If true, these headers will be used to assemble the URL of the request
+   * that getRequest() presents to route handlers server-side.
+   * Only set this if your server is sitting behind a reverse proxy.
+   *
+   * Default: false.
+   */
+  trustProxy: boolean;
   /**
    * How to handle server-side fetch() requests made against relative URLs.
    * - 'request-host':
@@ -46,16 +62,39 @@ export type ServerSettings = {
   responseTimeout: number;
 };
 
-export function fillServerSettings(s?: Partial<ServerSettings>): ServerSettings {
-  const fetchOrigin = s?.fetchOrigin ?? 'request-host' as const;
-  const routerTimeout = s?.routerTimeout ?? 20_000;
-  const responseTimeout = s?.responseTimeout ?? 20_000;
-  return {
-    fetchOrigin,
-    routerTimeout,
-    responseTimeout,
-  }
+const DEFAULT_SERVER_SETTINGS: ServerSettings = {
+  allowedHosts: ['localhost'],
+  trustProxy: false,
+  fetchOrigin: 'request-host',
+  routerTimeout: 20_000,
+  responseTimeout: 20_000,
 };
+
+export function fillServerSettings(s?: Partial<ServerSettings>): ServerSettings {
+  const settings = Object.assign({}, DEFAULT_SERVER_SETTINGS, s);
+  if (settings.allowedHosts.length === 0) {
+    throw new Error("[verso] allowedHosts cannot be empty!");
+  }
+  return settings;
+};
+
+export type ClientSettings = {
+  /**
+   * Whether client navigations should reuse existing DOM elements by default
+   * (overridable per-navigation via the options passed to naviateTo).
+   *
+   * Default: false.
+   */
+  reuseDom: boolean;
+};
+
+const DEFAULT_CLIENT_SETTINGS: ClientSettings = {
+  reuseDom: false,
+};
+
+export function fillClientSettings(s?: Partial<ClientSettings>): ClientSettings {
+  return Object.assign({}, DEFAULT_CLIENT_SETTINGS, s);
+}
 
 export type RoutesMap = {
   [routeName: string]: {

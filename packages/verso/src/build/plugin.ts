@@ -16,7 +16,7 @@ import { createJiti, type Jiti } from 'jiti';
 import { html500 } from '../core/server/errorPages';
 import type {MakeHandleRequest} from '../core/server/handleRequest';
 import type { MiddlewareDefinition } from '../core/common/handler/Middleware';
-import {createNavigator} from '../core/common/navigator';
+import {createResolver} from '../core/common/resolver';
 
 const VERSO_CONFIG_FILE_NAME = 'verso.config.ts';
 
@@ -294,7 +294,7 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
           if (!resolvedPath) return null;
           return await importWithVite<RouteHandler<any, any, any>>(vite, resolvedPath);
         };
-        const navigator = createNavigator(routes, getRouteHandler, globalMiddleware);
+        const navigator = createResolver(routes, getRouteHandler, globalMiddleware);
 
         const handleRequest = makeHandleRequest(navigator, serverSettings);
 
@@ -324,6 +324,9 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
               const response = await handleRequest(request);
               await sendWebResponse(res, response);
             } catch (e) {
+              if (res.destroyed || res.writableEnded) {
+                return;
+              }
               console.error('[verso]', e);
               res.statusCode = 500;
               res.setHeader('Content-Type', 'text/html; charset=utf-8');

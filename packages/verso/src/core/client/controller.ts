@@ -1,22 +1,24 @@
 import {getLinkTagAttrs, getMetaTagAttrs, setNodeAttrs, type MetaTag} from "../common/handler/Page";
-import {createRoot, hydrateRoot, type Root as ReactRoot} from "react-dom/client";
+import {hydrateRoot} from "react-dom/client";
 import {TOKEN, tokenizeElements} from "../common/tokenizeElements";
-import {scheduleRootRender, setRootAttrs} from "../common/components/Root";
-import {PAGE_ELEMENT_TOKEN_ID_ATTR, PAGE_HEADER_LINK_ELEMENT_ATTR, PAGE_ROOT_ELEMENT_ATTR} from "../common/constants";
-import {FETCH_CACHE_KEY, FN_ABORT_HYDRATION, FN_HYDRATE_ROOTS_UP_TO, FN_RECEIVE_LATE_DATA_ARRIVAL, FN_SIGNAL_ROOTS_COMPLETE, REQUEST_METHOD_KEY, VersoPipe} from "../common/VersoPipe";
+import {scheduleRootRender} from "../common/components/Root";
+import {PAGE_ELEMENT_TOKEN_IDX_ATTR, PAGE_HEADER_LINK_ELEMENT_ATTR, PAGE_ROOT_ELEMENT_ATTR} from "../common/constants";
+import {FETCH_CACHE_KEY, FN_ABORT_HYDRATION, FN_HYDRATE_ROOTS_UP_TO, FN_RECEIVE_LATE_DATA_ARRIVAL, FN_SIGNAL_ROOTS_COMPLETE, REQUEST_DATA_KEY, VersoPipe} from "../common/VersoPipe";
 import {Fetch} from "../common/fetch/Fetch";
 import {startClientRequest} from "../common/RequestLocalStorage";
-import {setContainerAttrs} from "../common/components/RootContainer";
-import {StyleTransitioner} from "./styles";
-import { ScriptTransitioner } from "./scripts";
+import {StyleTransitioner} from "./transitioners/styles";
+import { ScriptTransitioner } from "./transitioners/scripts";
 import type {BundleManifest} from "../../build/bundle";
 import {HistoryManager, type NavigationDirection, type OnPopState} from "./history";
-import type {ReactElement} from "react";
-import {flushSync} from "react-dom";
-import type {Navigator} from "../common/navigator";
-import {getAbortSignal, initAbortController} from "../common/abort";
+import {initAbortController} from "../common/abort";
 import {ClientNavigationManager, type StartNavigation, type CommitNavigation} from "./navigation";
-import {PageElementProcessor} from "../common/PageElementProcessor";
+import {BodyElementTransitioner} from "./transitioners/body";
+import {ReactRootManager} from "./roots";
+import {flushSync} from "react-dom";
+import type {Resolver} from "../common/resolver";
+import {stripUrlHash} from "./url";
+import type {ClientSettings} from "../../build/config";
+import {unmarshallBody} from "../common/util/body";
 
 let self: ClientController | null = null;
 export function getClientController(): ClientController {
@@ -26,29 +28,72 @@ export function getClientController(): ClientController {
   return self;
 }
 
-export interface NavigateOptions {
-  // TODO: reuseDom
+export type NavigateOptions = {
+  reuseDom: boolean;
 }
 
 export class ClientController {
-  private reactRoots: Set<ReactRoot>; // so we can unmount them on navigation
   private styleTransitioner: StyleTransitioner;
   private scriptTransitioner: ScriptTransitioner;
   private historyManager: HistoryManager;
+  private reactRootManager: ReactRootManager;
   private navigationManager: ClientNavigationManager;
 
-  constructor(navigator: Navigator, manifest: BundleManifest | null) {
-    this.reactRoots = new Set();
+  constructor(resolver: Resolver, manifest: BundleManifest | null, private settings: ClientSettings) {
     this.styleTransitioner = new StyleTransitioner(manifest);
     this.scriptTransitioner = new ScriptTransitioner();
-    const onPopState: OnPopState = (url, options) => this.navigate(url, 'POP', options);
-    this.historyManager = new HistoryManager(onPopState);
-    this.navigationManager = new ClientNavigationManager(navigator);
+    const onPopToVersoState: OnPopState = async (url, options) => {
+      try {
+        await this.navigate(url, 'POP', options);
+      } catch (err) {
+        console.error("[verso] navigation failed", err);
+      }
+    };
+    this.historyManager = new HistoryManager(onPopToVersoState);
+    this.reactRootManager = new ReactRootManager();
+    this.navigationManager = new ClientNavigationManager(resolver);
     self = this;
   }
 
   async hydrate() {
+    // set up the listener right away, in case we need to interrupt hydration
+    this.historyManager.installListener();
+    // mark the history frame as ours. we re-stamp on navigate, but we need this
+    // upfront in case there's a userland pushstate before a verso navigation.
+    // note that it's safe to reuse the dom here because the only way to pop
+    // to this state is by doing a non-verso pushstate, then a popstate,
+    // which means we're on the same page as before.
+    this.historyManager.stampHistoryFrame({ reuseDom: true });
+
+    // get the transitioners up to speed on the server render
+    this.styleTransitioner.readServerStyles();
+    this.scriptTransitioner.readServerScripts();
+
     const readablePipe = VersoPipe.reader();
+
+    // first check the details of the server request
+    const serverRequestData = readablePipe.readValue(REQUEST_DATA_KEY) ?? {};
+    let { method, url } = serverRequestData;
+    if (!method) {
+      console.error("[verso] hydration error: missing http method! assuming GET");
+      method = 'GET';
+    }
+    const currentUrl = stripUrlHash(window.location.href); // no hash server-side
+    if (!url) {
+      console.error("[verso] hydration error: missing request url! assuming window.location.href");
+      url = currentUrl;
+    }
+
+    if (url !== currentUrl) {
+      const options = this.historyManager.getNavigateOptions();
+      if (!options) {
+        console.error('[verso] history frame was not verso-stamped! how did we get here? bailing out.');
+        return;
+      }
+      // the user navigated their browser to a different verso page before this request bootstrapped.
+      // let's follow them.
+      return await this.navigate(currentUrl, 'POP', options);
+    }
 
     const rootDomNodeDfds: Array<PromiseWithResolvers<Element>> = [];
     const rootHydrationDfds: Array<PromiseWithResolvers<void>> = [];
@@ -65,8 +110,6 @@ export class ClientController {
       startClientRequest();
 
       const abortController = initAbortController();
-      this.styleTransitioner.readServerStyles();
-      this.scriptTransitioner.readServerScripts();
 
       const fetchCache = readablePipe.readValue(FETCH_CACHE_KEY);
       if (!fetchCache) {
@@ -74,29 +117,26 @@ export class ClientController {
       }
       Fetch.clientInit(fetchCache ?? {});
 
-      const method = readablePipe.readValue(REQUEST_METHOD_KEY);
-      if (!method) {
-        console.error("[verso] hydration error: missing http method! assuming GET");
-      }
-
-      const req = new Request(window.location.href, {
-        method: method ?? 'GET',
+      const { body } = serverRequestData;
+      const req = new Request(url, {
+        method: method,
+        body: unmarshallBody(body),
         signal: abortController.signal, // cancel any fetch() requests that miss the cache
       });
 
       return {
         req,
         interrupt: () => {
-          abortController.abort();
+          abortController.abort('interrupted by navigation');
           abortHydration();
         },
       };
     };
 
-    const commit: CommitNavigation = async ({ page }) => {
-      this.historyManager.stampHistoryFrame();
-      // TODO: should we repeat ^this defensively after all roots have hydrated
-      // in case userland code has clobbered it? or treat that as misuse?
+    const commit: CommitNavigation = async ({ page, url }) => {
+      if (url !== currentUrl) {
+        throw new Error("resolved URL did not match current URL! this indicates non-isomorphic behavior in getRouteDirective (the client returned a redirect, and the server did not). aborting hydration.");
+      }
 
       const tokens = tokenizeElements(page.getElements());
 
@@ -110,8 +150,8 @@ export class ClientController {
           rootDomNodeDfds[i].promise.then(async (node) => {
             try {
               const reactElement = await renderPromise;
-              const reactRoot = hydrateRoot(node, reactElement);
-              this.reactRoots.add(reactRoot);
+              const reactRoot = flushSync(() => hydrateRoot(node, reactElement));
+              this.reactRootManager.registerReactRoot(reactRoot, i);
               hydrationDfd.resolve();
             } catch (e) {
               console.error(`[verso] error hydrating root ${i}`, e);
@@ -138,8 +178,7 @@ export class ClientController {
         allRootsSettled,
         receivedAllRootDomNodesDfd.promise,
       ]).then(() => {
-        this.historyManager.installListener();
-        readablePipe.destroy();
+        readablePipe.destroy(); // TODO: also remove script tags from dom?
       });
 
       let nextRootIndex = 0;
@@ -150,7 +189,7 @@ export class ClientController {
             // not a root
             continue;
           }
-          const node = document.querySelector(`[${PAGE_ROOT_ELEMENT_ATTR}][${PAGE_ELEMENT_TOKEN_ID_ATTR}="${i}"]`);
+          const node = document.querySelector(`[${PAGE_ROOT_ELEMENT_ATTR}][${PAGE_ELEMENT_TOKEN_IDX_ATTR}="${i}"]`);
           if (!node) {
             console.warn(`[verso] error hydrating root ${i}: DOM node not found`);
             continue;
@@ -171,26 +210,37 @@ export class ClientController {
     await this.navigationManager.requestNavigation(start, commit);
   }
 
-  async navigate(url: string, direction: NavigationDirection, options: NavigateOptions = {}): Promise<void> {
+  async navigate(requestedUrl: string, direction: NavigationDirection, _options?: Partial<NavigateOptions>): Promise<void> {
+    const options = this.fillNavigateOptions(_options);
+    if (direction === 'PUSH') {
+      // stamp the outgoing frame with the history options used to navigate away, so we can reuse them in case we popstate back.
+      // TODO: what if the popstate skips links in the history chain? should we also track the url in the frame,
+      // and only use rely on the frame's reuseDom on navigations from that url?
+      this.historyManager.stampHistoryFrame(options);
+    }
+
     const start: StartNavigation = () => {
       startClientRequest(); // new page chain, new RLS context
       Fetch.clientInit(); // just initiate an empty cache, since Fetch assumes it'll exist
       const abortController = initAbortController();
       return {
-        req: new Request(url, {
+        req: new Request(requestedUrl, {
           method: 'GET', // client navigations are always GET
           signal: abortController.signal,
         }),
         interrupt: () => {
-          abortController.abort();
-          // TODO anything else to do here?
+          abortController.abort('interrupted by navigation');
         },
       };
     };
 
-    const commit: CommitNavigation = async ({ page, routeName }) => {
+    const commit: CommitNavigation = async ({ page, routeName, url: resolvedUrl }) => {
       if (direction === 'PUSH') {
-        this.historyManager.pushFrame(url, options);
+        this.historyManager.pushFrame(resolvedUrl);
+      } else if (direction === 'POP') {
+        if (resolvedUrl !== stripUrlHash(window.location.href)) {
+          throw new Error("[verso] resolved URL did not match current URL! how did this happen? aborting navigation.");
+        }
       }
 
       // =header=
@@ -249,74 +299,8 @@ export class ClientController {
       document.body.className = newBodyClasses.join(' ');
 
       // elements
-      // first blow away the old roots -- TODO: reuseDom
-      this.reactRoots.forEach((root) => root.unmount());
-      this.reactRoots.clear();
-      document.body.innerHTML = ''; // TODO put all roots in a supercontainer in case I want to add getBodyStartContent
-
-      // then render and mount the new ones. use the same algorithm as the server render.
-      let currentContainer: Node = document.body;
-      type RenderedElement = |
-        {
-        kind: 'open';
-        divElement: HTMLElement;
-      } | {
-        kind: 'close';
-      } | {
-        kind: 'root';
-        rendered: { rootElement: ReactElement, index: number };
-      };
-      const processor = new PageElementProcessor<RenderedElement>({
-        renderContainerOpen: (element, index) => {
-          const divElement = document.createElement('div');
-          setContainerAttrs(divElement, element.props, index);
-          return {
-            kind: 'open' as const,
-            divElement,
-          };
-        },
-        renderContainerClose: () => {
-          return { kind: 'close' };
-        },
-        renderRootElement: (rootElement, index) => {
-          return { kind: 'root', rendered: { rootElement, index } };
-        },
-        consumeRenderedElements: (elements) => {
-          elements.forEach((element) => {
-            if (getAbortSignal().aborted) return; // another navigation is about to run
-            switch (element.kind) {
-              case 'open': {
-                currentContainer.appendChild(element.divElement);
-                currentContainer = element.divElement;
-                break;
-              }
-              case 'close': {
-                currentContainer = currentContainer.parentNode!;
-                break;
-              }
-              case 'root': {
-                const { rootElement, index } = element.rendered;
-                const newNode = document.createElement('div');
-                setRootAttrs(newNode, index)
-                currentContainer.appendChild(newNode);
-                const reactRoot = createRoot(newNode);
-                this.reactRoots.add(reactRoot);
-                try {
-                  // without flushSync, the concurrent scheduler could mount roots out of order (I think)
-                  flushSync(() => reactRoot.render(rootElement));
-                } catch (err) {
-                  console.error("[verso] error rendering root", err);
-                }
-                break;
-              }
-              default:
-                element satisfies never;
-            }
-          });
-        },
-      });
-
-      await processor.process(page.getElements());
+      const transitioner = new BodyElementTransitioner(this.reactRootManager, options);
+      await transitioner.transitionElements(page.getElements());
 
       // finally clean up any unneeded stylesheets from the last route
       cleanupPreviousStyles();
@@ -324,6 +308,22 @@ export class ClientController {
 
     await this.navigationManager.requestNavigation(start, commit);
   }
+
+  subscribeToNavigation(listener: () => void) {
+    return this.navigationManager.subscribe(listener);
+  }
+
+  getNavigationState() {
+    return this.navigationManager.getState();
+  }
+
+  private fillNavigateOptions(options?: Partial<NavigateOptions>): NavigateOptions {
+    return {
+      ...this.settings,
+      ...(options ?? {}),
+    };
+  }
+
 }
 
 function renderMetaTag(tag: MetaTag) {

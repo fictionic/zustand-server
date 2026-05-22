@@ -1,6 +1,6 @@
-import {PAGE_HEADER_SCRIPT_ELEMENT_ATTR} from "../common/constants";
-import {getScriptAttrs, setNodeAttrs, type Script} from "../common/handler/Page";
-import {normalizeUrl} from "./url";
+import {PAGE_HEADER_SCRIPT_ELEMENT_ATTR} from "../../common/constants";
+import {getScriptAttrs, setNodeAttrs, type Script} from "../../common/handler/Page";
+import {normalizeUrlOrigin} from "../url";
 
 export class ScriptTransitioner {
   private loaded: Set<string>;
@@ -31,7 +31,7 @@ export class ScriptTransitioner {
   keyFor(script: Script): string {
     const scriptType = script.type ?? '';
     const scriptContent = 'src' in script ?
-      'src|' + normalizeUrl(script.src) :
+      'src|' + normalizeUrlOrigin(script.src) :
       'text|' + script.text;
     return `type:${scriptType}|${scriptContent}`;
   }

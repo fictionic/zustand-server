@@ -10,7 +10,7 @@ import {VersoRequest} from "./VersoRequest";
 
 const REDIRECT_STATUSES = [301, 302, 303, 307, 308];
 
-export type NavigationResult = |
+export type Resolution = |
   { kind: 'not-found' } |
   { kind: 'error' } |
   {
@@ -21,16 +21,16 @@ export type NavigationResult = |
     handler?: AnyStandardizedHandler;
   };
 
-export interface Navigator {
-  navigate: (req: Request) => Promise<NavigationResult>;
+export interface Resolver {
+  resolve: (req: Request) => Promise<Resolution>;
 }
 
 export type GetRouteHandler = (routeName: string) => MaybePromise<RouteHandlerDefinition<RouteHandlerType, any, any> | null>;
 
-export function createNavigator(routes: RoutesMap, getRouteHandler: GetRouteHandler, globalMiddleware: MiddlewareDefinition[]): Navigator {
+export function createResolver(routes: RoutesMap, getRouteHandler: GetRouteHandler, globalMiddleware: MiddlewareDefinition[]): Resolver {
   const router = createRouter(routes);
   return {
-    navigate: async (req): Promise<NavigationResult> => {
+    resolve: async (req): Promise<Resolution> => {
       const url = new URL(req.url);
       const route = router.matchRoute(url.pathname + url.search, req.method);
       if (!route) {
@@ -42,7 +42,7 @@ export function createNavigator(routes: RoutesMap, getRouteHandler: GetRouteHand
         console.error(`[verso] no handler for route ${routeName}`);
         return { kind: 'error' };
       }
-      const versoRequest = new VersoRequest(url, req.method, route.params);
+      const versoRequest = new VersoRequest(req);
       const config = new MiddlewareConfig();
       const ctx = createCtx(config, versoRequest, route);
       const chain = createHandlerChain(handler, globalMiddleware, config, ctx);

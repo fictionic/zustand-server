@@ -14,12 +14,12 @@ export function createViteBundleLoader(config: ViteBundleLoaderConfig): Middlewa
   return defineMiddleware('page', ({ getRoute }) => {
     return {
       getSystemStylesheets: async (next) => {
-        const routeName = getRoute().getName();
+        const routeName = getRoute().name;
         const stylesheets: Stylesheet[] = await config.getRouteStylesheets(routeName);
         return [...stylesheets, ...(await next())];
       },
       getSystemLinkTags: async (next) => {
-        const routeName = getRoute().getName();
+        const routeName = getRoute().name;
         const routePreloads: LinkTag[] = (await config.getRouteModulePreloadUrls(routeName))
           .map(makeModulePreload);
         const globalPreloads: LinkTag[] = (config.globalModulePreloadUrls ?? [])
@@ -27,7 +27,7 @@ export function createViteBundleLoader(config: ViteBundleLoaderConfig): Middlewa
         return [...globalPreloads, ...routePreloads, ...await next()];
       },
       getSystemScripts: async (next) => {
-        const routeName = getRoute().getName();
+        const routeName = getRoute().name;
         const routeScripts: Script[] = (await config.getRouteScriptUrls(routeName))
           .map(src => ({ src, type: 'module', async: true }));
           // ^async here is important. allows scripts to execute before the document has been parsed.

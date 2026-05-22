@@ -20,7 +20,7 @@ type ProcessableToken<T> = {
 
 export type ProcessorOpts<RenderedElement> = {
   renderContainerOpen: (element: RootContainerElementType, index: number) => RenderedElement,
-  renderContainerClose: () => RenderedElement,
+  renderContainerClose: (index: number) => RenderedElement,
   renderRootElement: (element: ReactElement, index: number) => RenderedElement,
   onLastProcessedRootIndex?: (index: number) => void,
   onProcessedTheFoldIndex?: (index: number) => MaybePromise<void>,
@@ -77,7 +77,7 @@ export class PageElementProcessor<RenderedElement> {
           break;
         case TOKEN.CONTAINER_CLOSE:
           processable.status = TOKEN_STATUS.RENDERED;
-          processable.rendered = this.opts.renderContainerClose();
+          processable.rendered = this.opts.renderContainerClose(i);
           break;
         case TOKEN.THE_FOLD:
           processable.status = TOKEN_STATUS.RENDERED;

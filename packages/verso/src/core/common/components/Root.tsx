@@ -1,5 +1,5 @@
 import React, {createContext, StrictMode, useContext, type ReactElement, type ReactNode} from 'react';
-import {PAGE_ELEMENT_TOKEN_ID_ATTR, PAGE_ROOT_ELEMENT_ATTR} from '../constants';
+import {PAGE_ELEMENT_TOKEN_IDX_ATTR, PAGE_ROOT_ELEMENT_ATTR} from '../constants';
 
 const ROOT_COMPONENT = Symbol('verso.RootComponent');
 
@@ -76,11 +76,11 @@ export function useRootData<T>(): T {
 }
 
 export function renderRootToString(index: number, innerHtml: string) {
-  return `<div ${PAGE_ELEMENT_TOKEN_ID_ATTR}="${index}" ${PAGE_ROOT_ELEMENT_ATTR}>${innerHtml}</div>\n`;
+  return `<div ${PAGE_ELEMENT_TOKEN_IDX_ATTR}="${index}" ${PAGE_ROOT_ELEMENT_ATTR}>${innerHtml}</div>\n`;
 }
 
 // for client transitions
 export function setRootAttrs(element: HTMLElement, index: number) {
-  element.setAttribute(PAGE_ELEMENT_TOKEN_ID_ATTR, String(index));
+  element.setAttribute(PAGE_ELEMENT_TOKEN_IDX_ATTR, String(index));
   element.setAttribute(PAGE_ROOT_ELEMENT_ATTR, '');
 }

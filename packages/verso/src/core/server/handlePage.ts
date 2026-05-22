@@ -1,15 +1,16 @@
 import {Fetch} from "../common/fetch/Fetch";
-import {FETCH_CACHE_KEY, FN_ABORT_HYDRATION, FN_HYDRATE_ROOTS_UP_TO, FN_RECEIVE_LATE_DATA_ARRIVAL, FN_SIGNAL_ROOTS_COMPLETE, REQUEST_METHOD_KEY, VersoPipe} from "../common/VersoPipe";
+import {FETCH_CACHE_KEY, FN_ABORT_HYDRATION, FN_HYDRATE_ROOTS_UP_TO, FN_RECEIVE_LATE_DATA_ARRIVAL, FN_SIGNAL_ROOTS_COMPLETE, REQUEST_DATA_KEY, VersoPipe} from "../common/VersoPipe";
 import {getScriptAttrs, type Script, type StandardizedPage} from "../common/handler/Page";
 import {renderOpenTag, writeHeader} from "./writeHeader";
 import {renderContainerOpen, renderContainerClose} from '../common/components/RootContainer';
 import type {CacheableRequest, CacheEntryData} from "../common/fetch/cache";
 import type {HandlerResponse} from "./response";
 import {cancelAbortTimeout, didAbort} from "../common/abort";
-import {getStash} from "./stash";
+import {getServerStash} from "./stash";
 import {PageElementProcessor} from "../common/PageElementProcessor";
 import {renderToString} from "react-dom/server";
 import {renderRootToString} from "../common/components/Root";
+import {marshallBody} from "../common/util/body";
 
 export function handlePage(page: StandardizedPage): HandlerResponse {
   const { readable, writable } = new TransformStream<Uint8Array>();
@@ -112,8 +113,12 @@ export function handlePage(page: StandardizedPage): HandlerResponse {
   async function bootstrapClient(theFoldIndex: number) {
     const fetchCache = Fetch.getCache().server().dehydrate();
     writeablePipe.writeValue(FETCH_CACHE_KEY, fetchCache);
-    const method = getStash().request.method;
-    writeablePipe.writeValue(REQUEST_METHOD_KEY, method);
+    const request = getServerStash().request;
+    writeablePipe.writeValue(REQUEST_DATA_KEY, {
+      method: request.method,
+      url: request.url,
+      body: await marshallBody(request.clone()),
+    });
     for (const script of [...await page.getSystemScripts(), ...page.getScripts()]) {
       write(renderScript(script));
     }

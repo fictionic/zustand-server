@@ -43,6 +43,9 @@ export function getAdapter(outDir = 'dist'): RuntimeAdapter {
           const response = await handler(request);
           await sendWebResponse(nodeRes, response);
         } catch (e) {
+          if (nodeRes.destroyed || nodeRes.writableEnded) {
+            return;
+          }
           console.error('[verso]', e);
           nodeRes.statusCode = 500;
           nodeRes.end();

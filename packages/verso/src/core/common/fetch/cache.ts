@@ -1,3 +1,5 @@
+import {marshallBody, unmarshallBody, type MarshalledBody} from "../util/body";
+
 export type DehydratedCache = Record<string, Array<DehydratedCacheEntry>>;
 
 export type PendingEntry = {
@@ -13,19 +15,19 @@ export type CacheableRequest = {
 
 export type CacheEntryData = {
   response: CachedResponse | null;
-  error: SerializedError | null;
+  error: MarshalledError | null;
   requesters: number;
 };
 
 export type CachedResponse = {
-  text: string;
-  isBinary?: boolean;
+  body: MarshalledBody | null;
   status: number;
   // we don't include response headers in the cache because (1) they're big,
   // (2) it would be a security vulnerability, and (3) probably no one needs them.
 };
 
-type SerializedError = {
+type MarshalledError = {
+  name: string;
   message: string;
 };
 
@@ -122,21 +124,8 @@ export class FetchCache {
 
       async receiveResponse(req: CacheableRequest, response: Response) {
         const entry = ensureEntry(cache.findEntry(req));
-        const text = await response.text();
         const cachedResponse: CachedResponse = {
-          text,
-          status: response.status,
-        };
-        entry.data.response = cachedResponse;
-        entry.dfd.resolve(cachedResponse);
-      },
-
-      async receiveBinaryResponse(req: CacheableRequest, response: Response) {
-        const entry = ensureEntry(cache.findEntry(req));
-        const bytes = await response.bytes();
-        const cachedResponse: CachedResponse = {
-          text: bytes.toBase64(),
-          isBinary: true,
+          body: await marshallBody(response),
           status: response.status,
         };
         entry.data.response = cachedResponse;
@@ -156,7 +145,7 @@ export class FetchCache {
       receiveError(req: CacheableRequest, error: Error) {
         const entry = ensureEntry(cache.findEntry(req));
         entry.dfd.reject(error);
-        entry.data.error = dehydrateError(error);
+        entry.data.error = marshallError(error);
       },
 
       dehydrate(): DehydratedCache {
@@ -212,7 +201,7 @@ export class FetchCache {
             if (response) {
               dfd.resolve(response);
             } else if (error) {
-              dfd.reject(rehydrateError(error));
+              dfd.reject(unmarshallError(error));
             }
             return {
               aux: dehydratedEntry.aux,
@@ -234,7 +223,7 @@ export class FetchCache {
         if (data.response) {
           entry.dfd.resolve(data.response);
         } else {
-          entry.dfd.reject(rehydrateError(data.error!));
+          entry.dfd.reject(unmarshallError(data.error!));
         }
       },
 
@@ -255,15 +244,22 @@ function ensureEntry(entry: CacheEntry | null): CacheEntry {
   return entry;
 }
 
-function dehydrateError(error: Error): SerializedError {
-  // Error objects aren't serializable
+function marshallError(error: Error): MarshalledError {
   return {
+    name: error.name,
     message: error.message,
   };
 }
 
-function rehydrateError(error: SerializedError): Error {
-  return new Error(error.message);
+function unmarshallError(error: MarshalledError): ReconstructedFetchError {
+  return new ReconstructedFetchError(error);
+}
+
+class ReconstructedFetchError extends Error {
+  constructor(error: MarshalledError) {
+    super(error.message);
+    this.name = error.name;
+  }
 }
 
 type ParsedURL = {
@@ -279,10 +275,10 @@ function parseUrlString(url: string): ParsedURL {
   };
 }
 
-function normalizeQueryParams(params: URLSearchParams): string {
-  const _params = new URLSearchParams(params);
-  _params.sort();
-  return _params.toString();
+function normalizeQueryParams(_params: URLSearchParams): string {
+  const params = new URLSearchParams(_params);
+  params.sort();
+  return params.toString();
 }
 
 export function reifyCachedResponse(promise: Promise<CachedResponse>): Promise<Response> {
@@ -290,7 +286,7 @@ export function reifyCachedResponse(promise: Promise<CachedResponse>): Promise<R
 }
 
 function readCachedResponse(cachedResponse: CachedResponse): Response {
-  const body = cachedResponse.isBinary ? Uint8Array.fromBase64(cachedResponse.text) : cachedResponse.text;
+  const body = unmarshallBody(cachedResponse.body);
   return new Response(body, {
     status: cachedResponse.status,
   });

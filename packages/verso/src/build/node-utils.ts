@@ -43,5 +43,13 @@ export async function sendWebResponse(nodeRes: http.ServerResponse, response: Re
     nodeRes.end();
     return;
   }
-  await pipeline(Readable.fromWeb(response.body as any), nodeRes);
+  try {
+    await pipeline(Readable.fromWeb(response.body as any), nodeRes);
+  } catch (err: any) {
+    if (err?.code === 'ERR_STREAM_UNABLE_TO_PIPE' || err?.code === 'ERR_STREAM_PREMATURE_CLOSE' || nodeRes.destroyed) {
+      // client disconnect
+      return;
+    }
+    throw err;
+  }
 }

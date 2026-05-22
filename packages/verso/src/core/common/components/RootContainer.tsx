@@ -1,6 +1,6 @@
 import React from 'react';
 import { renderToString } from 'react-dom/server';
-import { PAGE_ELEMENT_TOKEN_ID_ATTR } from '../constants';
+import { PAGE_ELEMENT_TOKEN_IDX_ATTR } from '../constants';
 
 type RenderableHTMLAttributes = &
   Pick<
@@ -25,7 +25,7 @@ const DIV_CLOSE = '</div>';
 
 export function renderContainerOpen(element: RootContainerElementType, index: number): string {
   const { children, ...attrs } = element.props;
-  const html = renderToString(<div {...{[PAGE_ELEMENT_TOKEN_ID_ATTR]: String(index)}} {...attrs} />);
+  const html = renderToString(<div {...{[PAGE_ELEMENT_TOKEN_IDX_ATTR]: String(index)}} {...attrs} />);
   return html.slice(0, -(DIV_CLOSE.length)) + '\n';
 }
 
@@ -35,7 +35,7 @@ export function renderContainerClose(): string {
 
 // for client transitions
 export function setContainerAttrs(el: HTMLElement, props: RootContainerProps, index: number) {
-  el.setAttribute(PAGE_ELEMENT_TOKEN_ID_ATTR, String(index));
+  el.setAttribute(PAGE_ELEMENT_TOKEN_IDX_ATTR, String(index));
   for (const [key, value] of Object.entries(props)) {
     if (key === 'children' || key.startsWith('on') || value == null) {
       // TODO: more props to skip? ideally we should match exactly what renderToString does

@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {fillServerSettings, type ServerSettings, type VersoConfig} from './config';
+import {fillClientSettings, fillServerSettings, type ServerSettings, type VersoConfig} from './config';
 import type {CreateVersoServer} from './createVersoServer';
 import type {BundleResult} from './bundle';
 
@@ -20,8 +20,9 @@ export function getEntrypointGenerator(
   writeManifest: boolean,
 ): EntrypointGenerator {
 
-  const { routes, middleware, server: _serverSettings } = versoConfig;
+  const { routes, middleware, server: _serverSettings, client: _clientSettings } = versoConfig;
   const serverSettings = fillServerSettings(_serverSettings);
+  const clientSettings = fillClientSettings(_clientSettings);
   const middlewarePaths = (middleware ?? [])
     .map((modulePath) => path.resolve(handlerBasePath, modulePath));
 
@@ -50,6 +51,8 @@ import { bootstrap } from ${quote(BOOTSTRAP_PATH)};
 
 const routes = ${JSON.stringify(routes)};
 
+const clientSettings = ${JSON.stringify(clientSettings)};
+
 const pageLoaders = {
   ${pageImporterEntries.join(',\n  ')}
 };
@@ -59,7 +62,7 @@ const middleware = [${middlewareImportNames.join(', ')}];
 
 const manifest = ${manifest};
 
-bootstrap(routes, pageLoaders, middleware, manifest);
+bootstrap(routes, pageLoaders, middleware, manifest, clientSettings);
 `.trim();
     },
 

@@ -4,7 +4,7 @@ import type {MiddlewareDefinition} from "../core/common/handler/Middleware";
 import {createViteBundleLoader} from "./ViteBundleLoader";
 import type {RoutesMap, ServerSettings} from './config';
 import type {RouteHandlerDefinition} from "../core/common/handler/RouteHandler";
-import {createNavigator, type GetRouteHandler} from "../core/common/navigator";
+import {createResolver, type GetRouteHandler} from "../core/common/resolver";
 import {MANIFEST_PATH} from "./constants";
 import {type HandleRequest, makeHandleRequest} from "../core/server/handleRequest";
 
@@ -59,7 +59,7 @@ export async function createVersoServer(
   const systemMiddleware = [bundleLoader];
   const globalMiddleware = [...systemMiddleware, ...middleware];
   const getRouteHandler: GetRouteHandler = (routeName: string) => routeHandlers[routeName] ?? null;
-  const navigator = createNavigator(routes, getRouteHandler, globalMiddleware);
+  const navigator = createResolver(routes, getRouteHandler, globalMiddleware);
 
   const handleRequest = makeHandleRequest(navigator, serverSettings);
 

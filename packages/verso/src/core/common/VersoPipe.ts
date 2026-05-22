@@ -1,9 +1,10 @@
 import { createPipe, type PipeSchema } from "./util/ServerClientPipe";
 import type { CacheableRequest, CacheEntryData, DehydratedCache } from "./fetch/cache";
+import type {MarshalledBody} from "./util/body";
 
 export const VERSO_PIPE_NAME = '__versoPipe';
 
-export const REQUEST_METHOD_KEY = 'requestMethod' as const;
+export const REQUEST_DATA_KEY = 'requestData' as const;
 export const FETCH_CACHE_KEY = 'fetchCache' as const;
 
 export const FN_HYDRATE_ROOTS_UP_TO = 'hydrateRootsUpTo' as const;
@@ -13,7 +14,11 @@ export const FN_ABORT_HYDRATION = 'abortHydration' as const;
 
 export interface VersoPipeSchema extends PipeSchema {
   data: {
-    [REQUEST_METHOD_KEY]: string;
+    [REQUEST_DATA_KEY]: {
+      method: string;
+      url: string;
+      body: MarshalledBody | null;
+    };
     [FETCH_CACHE_KEY]: DehydratedCache;
   };
   fns: {

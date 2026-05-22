@@ -5,6 +5,8 @@ import { getRLS } from '../RequestLocalStorage';
 import { FetchCache, reifyCachedResponse, type CacheableRequest, type DehydratedCache } from './cache';
 import { nativeFetch } from './nativeFetch';
 import type { FetchRequestInterceptor, FetchRequestSettings, VersoFetchInit } from './types';
+import type {HandleRequest} from '../../server/handleRequest';
+import {hasBinaryBody} from '../util/body';
 
 const DEFAULT_SETTINGS: Required<FetchRequestSettings> = {
   forceToCache: false,
@@ -21,7 +23,7 @@ const RLS = getRLS<{
   cache: FetchCache;
   requestOrigin?: string;
   originSetting?: FetchOrigin;
-  handleLoopbackRequest?: HandleLoopbackRequest;
+  handleLoopbackRequest?: HandleRequest;
   interceptor?: FetchRequestInterceptor;
 }>();
 
@@ -37,12 +39,10 @@ export function setFetchInterceptor(interceptor: FetchRequestInterceptor) {
   RLS().interceptor = interceptor;
 }
 
-export type HandleLoopbackRequest = (req: Request) => Promise<Response>;
-
 function serverInit(
   nativeRequest: Request,
   serverSettings: ServerSettings,
-  loopback: HandleLoopbackRequest,
+  loopback: HandleRequest,
 ) {
   RLS().cache = new FetchCache();
   RLS().requestOrigin = new URL(nativeRequest.url).origin;
@@ -127,14 +127,9 @@ async function fetch(rawUrl: string, rawInit: VersoFetchInit = {}, overrideSetti
           const headers = res.headers.getSetCookie();
           ServerCookies.get()!.setResponseSetCookieHeaders(headers);
         }
-        if (isBinaryResponse(res)) {
-          if (forceBinaryToCache) {
-            // encode binary payload to base64
-            cache.receiveBinaryResponse(req, res);
-          } else {
-            // evict from cache, reuse the response for any parallel requesters
-            cache.evictRequest(req, res);
-          }
+        if (hasBinaryBody(res) && !forceBinaryToCache) {
+          // evict from cache, reuse the response for any parallel requesters
+          cache.evictRequest(req, res);
         } else {
           // cache the response for transport
           cache.receiveResponse(req, res);
@@ -229,11 +224,4 @@ function isSameOrigin(urlString: string): boolean {
 
 function isRelativeUrl(url: string): boolean {
   return url.startsWith('/');
-}
-
-const TEXT_CONTENT_TYPE_RE = /^(text\/|application\/(\S+\+)?(json|xml))/;
-
-function isBinaryResponse(res: Response): boolean {
-  const contentType = res.headers.get('Content-Type');
-  return !contentType?.match(TEXT_CONTENT_TYPE_RE);
 }

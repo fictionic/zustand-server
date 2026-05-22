@@ -179,7 +179,7 @@ describe('TaskRunner', () => {
     expect(c.settled()).toBe(true);
   });
 
-  test('displaced queued task resolves quietly without running', async () => {
+  test('displaced queued task rejects with interruption without running', async () => {
     const runner = new TaskRunner();
     const a = makeFakeTask();
     const b = makeFakeTask();
@@ -194,8 +194,9 @@ describe('TaskRunner', () => {
 
     await aDone.catch(() => {});
 
-    // B's runTask resolves quietly — no rejection, no run.
-    await expect(bDone).resolves.toBeUndefined();
+    // B's runTask rejects with an interruption — it never ran.
+    const bError = await bDone.then(() => null).catch((e) => e);
+    expect(runner.isInterruption(bError)).toBe(true);
     expect(b.started()).toBe(false);
 
     expect(c.started()).toBe(true);
@@ -262,6 +263,28 @@ describe('TaskRunner', () => {
     b.finish();
     await bDone;
     expect(b.settled()).toBe(true);
+  });
+
+  test('runTask rejects with interruption even when task resolves instead of rejecting', async () => {
+    // Guards the `if (ref.interrupted) throw INTERRUPTED` branch: a task that
+    // ignores interrupt() and resolves normally should still cause runTask to
+    // reject with an interruption, not resolve successfully.
+    const runner = new TaskRunner();
+    const a = makeFakeTask({ resolveOnInterrupt: true });
+    const b = makeFakeTask();
+
+    const aDone = runner.runTask(a.task);
+    await tick();
+
+    silence(runner.runTask(b.task));
+    await tick();
+    expect(a.interrupted()).toBe(true);
+
+    a.finish();
+    await tick();
+
+    const aError = await aDone.then(() => null).catch((e) => e);
+    expect(runner.isInterruption(aError)).toBe(true);
   });
 
   test('interrupted task failure does not surface to queued task caller', async () => {

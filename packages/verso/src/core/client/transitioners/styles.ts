@@ -1,7 +1,7 @@
-import {DEV_ROUTE_CSS_PATH, DEV_VITE_STYLE_ID_ATTR, PAGE_HEADER_STYLE_ELEMENT_ATTR} from "../common/constants";
-import {getStyleAttrs, setNodeAttrs, type Stylesheet} from "../common/handler/Page";
-import {normalizeUrl} from "./url";
-import type {BundleManifest} from "../../build/bundle";
+import {DEV_ROUTE_CSS_PATH, DEV_VITE_STYLE_ID_ATTR, PAGE_HEADER_STYLE_ELEMENT_ATTR} from "../../common/constants";
+import {getStyleAttrs, setNodeAttrs, type Stylesheet} from "../../common/handler/Page";
+import {normalizeUrlOrigin} from "../url";
+import type {BundleManifest} from "../../../build/bundle";
 
 type StyleElement = HTMLLinkElement | HTMLStyleElement;
 
@@ -113,7 +113,7 @@ export class StyleTransitioner {
       }
     }
     if ('href' in stylesheet) {
-      return normalizeUrl(stylesheet.href);
+      return normalizeUrlOrigin(stylesheet.href);
     }
     return stylesheet.text;
   }

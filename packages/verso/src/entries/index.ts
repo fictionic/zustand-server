@@ -12,17 +12,17 @@ export { isServer } from '../core/common/env';
 export { fetch, setFetchInterceptor, type FetchRequestInterceptor, type FetchRequestSettings, type InterceptResult, type VersoFetchInit } from '../core/common/fetch';
 export { getCookie, setCookie } from '../core/common/cookies';
 export { getRLS } from '../core/common/RequestLocalStorage';
-export { navigateTo } from '../core/client/navigateTo';
+export * from '../userland/util';
 
 // Components
 export { Root, makeRootComponent, type RootAPI, type RootComponent, type RootElementType } from '../core/common/components/Root';
 export { RootContainer } from '../core/common/components/RootContainer';
 export { TheFold } from '../core/common/components/TheFold';
-export { IsomorphicPortal } from '../userland/components';
+export * from '../userland/components';
 
 // Hooks
 export { useRootData } from '../core/common/components/Root';
-export { useId } from '../userland/hooks/useId';
+export * from '../userland/hooks';
 
 // Misc
 export { type MaybePromise } from '../core/common/util/types';

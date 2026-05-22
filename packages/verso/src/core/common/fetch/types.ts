@@ -5,7 +5,8 @@
  */
 
 export type VersoFetchInit = RequestInit & {
-  body?: string; // disallow ReadableStream bodies
+  body?: string; // disallow binary and ReadableStream bodies
+  // TODO: what about FormData? worth supporting?
 };
 
 export type FetchRequestSettings = {
