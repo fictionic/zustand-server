@@ -1,7 +1,6 @@
-import React from 'react';
 import './base.css';
 import './link-page.css';
-import { RootContainer, definePage } from '@verso-js/verso';
+import { Link, RootContainer, definePage } from '@verso-js/verso';
 
 export default definePage(() => ({
   getTitle() {
@@ -16,7 +15,7 @@ export default definePage(() => ({
     return [
       <RootContainer style={{ maxWidth: 960, margin: '0 auto', padding: '40px 20px' }}>
         <h1 className="link-page-title">Link Page</h1>
-        <a href="/">Back to demo</a>
+        <Link href="/">Back to demo</Link>
       </RootContainer>,
     ];
   },

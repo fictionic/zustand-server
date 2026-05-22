@@ -2,7 +2,11 @@ import { defineConfig } from '@verso-js/verso/config';
 
 export default defineConfig({
   server: {
+    allowedHosts: ['localhost:3000'],
     fetchOrigin: 'loopback',
+  },
+  client: {
+    reuseDom: false,
   },
   middleware: ['./src/PageHeader'],
   routes: {

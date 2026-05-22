@@ -2,11 +2,11 @@ import { defineEndpoint } from '@verso-js/verso';
 import { delay } from '../delay';
 import { cookieLatency } from './cookieLatency';
 
-export default defineEndpoint((ctx) => {
+export default defineEndpoint(({ getRoute }) => {
   let userId: number;
   return {
     async getRouteDirective() {
-      userId = Number(ctx.getRequest().getParams()['userId']);
+      userId = Number(getRoute().params['userId']);
       await delay(cookieLatency('theme', 400));
       return { status: 200 };
     },

@@ -10,11 +10,11 @@ const NAMES: Record<number, string> = {
   5: 'Eve',
 };
 
-export default defineEndpoint((ctx) => {
+export default defineEndpoint(({ getRoute }) => {
   let id: number;
   return {
     async getRouteDirective() {
-      id = Number(ctx.getRequest().getParams()['id']);
+      id = Number(getRoute().params['id']);
       await delay(cookieLatency('users', 500));
       return { status: 200 };
     },
