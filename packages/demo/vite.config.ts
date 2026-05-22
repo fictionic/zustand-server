@@ -1,13 +1,13 @@
 import { defineConfig } from 'vite';
 import { verso } from '@verso-js/verso/plugin';
 
-export default defineConfig({
+export default defineConfig(async ({ command }) => ({
   environments: {
     client: {
       build: {
         rolldownOptions: {
           output: {
-            manualChunks: (id) => {
+            manualChunks: (id: string) => {
               if (id.includes('react')) return 'react';
               if (id.includes('verso')) return 'verso';
             },
@@ -17,9 +17,10 @@ export default defineConfig({
     },
   },
   build: {
-    minify: false,
+    minify: command === 'build',
+    sourcemap: command === 'serve',
   },
   plugins: [
     await verso(),
   ],
-});
+}));
