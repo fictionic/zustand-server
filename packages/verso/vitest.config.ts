@@ -5,4 +5,8 @@ export default defineConfig({
     'globalThis.IS_SERVER': 'true',
     'globalThis.IS_DEV': 'false',
   },
+  test: {
+    environment: 'node',
+    include: ['src/tests/**/*.test.{ts,tsx}'],
+  },
 });

@@ -37,13 +37,14 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "test": "npx vitest run",
+    "test": "bunx vitest run && bunx vitest run -c vitest.client.config.ts",
     "typecheck": "bunx tsc --noEmit"
   },
   "peerDependencies": {
     "typescript": "^5",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "vitest": "^1 | ^2 | ^3 | ^4"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.2",
