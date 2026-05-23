@@ -15,9 +15,10 @@ export { getRLS } from '../core/common/RequestLocalStorage';
 export * from '../userland/util';
 
 // Components
-export { Root, makeRootComponent, type RootAPI, type RootComponent, type RootElementType } from '../core/common/components/Root';
-export { RootContainer } from '../core/common/components/RootContainer';
+export { Root, type RootProps, makeRootComponent } from '../core/common/components/Root';
+export { RootContainer, type RootContainerProps } from '../core/common/components/RootContainer';
 export { TheFold } from '../core/common/components/TheFold';
+export { type RenderableHTMLAttributes } from '../core/common/components/attrs';
 export * from '../userland/components';
 
 // Hooks

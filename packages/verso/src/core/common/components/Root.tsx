@@ -1,70 +1,85 @@
-import React, {createContext, StrictMode, useContext, type ReactElement, type ReactNode} from 'react';
-import {PAGE_ELEMENT_TOKEN_IDX_ATTR, PAGE_ROOT_ELEMENT_ATTR} from '../constants';
+import {createContext, isValidElement, StrictMode, useContext, type FC, type ReactElement, type ReactNode} from 'react';
+import {type RenderableHTMLAttributes} from './attrs';
 
 const ROOT_COMPONENT = Symbol('verso.RootComponent');
 
 type WhenResult = unknown;
 
-export interface RootAPI {
+type RootAPI = {
   when?: Promise<WhenResult>;
 };
 
-interface RootProps extends RootAPI {
-  children: React.ReactNode;
-}
+export type RootProps = RenderableHTMLAttributes & RootAPI & {
+  children: ReactNode; // required
+};
 
-type DeriveRootAPI<P> = (props: P) => RootAPI;
+export type DeriveRootProps<P> = (props: P) => Omit<RootProps, 'children'>;
 
-export interface RootComponent<P> extends React.FC<P> {
+type RootComponentMixin<P> = {
   [ROOT_COMPONENT]: {
-    deriveRootAPI: DeriveRootAPI<P>;
+    deriveRootProps: DeriveRootProps<P>;
   };
 }
 
-export type RootElementType<P = object> = React.ReactElement<P> & { type: RootComponent<P> };
+type RootComponent<P> = React.FC<P> & RootComponentMixin<P>;
+
+export type AnyRootElement = React.ReactElement<any> & { type: RootComponent<any> };
 
 export function makeRootComponent<P>(
   Component: React.FC<P>,
-  deriveRootAPI: DeriveRootAPI<P>,
-): RootComponent<P> {
-  return Object.assign(
-    Component,
-    {[ROOT_COMPONENT]: { deriveRootAPI }},
-  );
+  deriveRootProps: DeriveRootProps<P>,
+): FC<P> {
+  const mixin: RootComponentMixin<P> = {
+    [ROOT_COMPONENT]: {
+      deriveRootProps,
+    },
+  };
+  return Object.assign(Component, mixin);
 }
 
-function isRootElement(element: ReactElement): element is RootElementType {
-  return React.isValidElement(element) && typeof element.type === 'function' && ROOT_COMPONENT in element.type;
+function isRootElement(element: ReactElement): element is AnyRootElement {
+  return isValidElement(element) && typeof element.type === 'function' && ROOT_COMPONENT in element.type;
 }
 
-export function ensureRootElement(element: ReactElement): RootElementType {
-  return isRootElement(element) ? element : <Root>{element}</Root> as RootElementType;
+export function ensureRootElement(element: ReactElement): AnyRootElement {
+  return isRootElement(element) ? element : <Root>{element}</Root>;
 }
 
-const RootPassthrough: React.FC<{ children: ReactNode }> = ({ children }) => children;
+const RootPassthrough: React.FC<RootProps> = ({ children }) => children;
 RootPassthrough.displayName = 'Root';
 
-export const Root = makeRootComponent<RootProps>(RootPassthrough, (p) => p);
+// the trivial Root: directly renders its children; passes through all its non-children props
+export const Root = makeRootComponent<RootProps>(RootPassthrough, (p) => {
+  const { children: _children, ...rest } = p;
+  return rest;
+});
 
 const NO_ROOT = Symbol('verso.NoRoot');
 const RootContext = createContext<WhenResult>(NO_ROOT);
 
-export async function scheduleRootRender(element: RootElementType): Promise<ReactElement> {
-  const { deriveRootAPI } = element.type[ROOT_COMPONENT];
-  const { when } = deriveRootAPI(element.props);
-  const promise = when ?? Promise.resolve();
-  const data = await promise
+export type ScheduledRootRender = {
+  promise: Promise<ReactElement>;
+  attrs: RenderableHTMLAttributes;
+};
+
+export function scheduleRootRender(element: AnyRootElement): ScheduledRootRender {
+  const { deriveRootProps } = element.type[ROOT_COMPONENT];
+  const { when, ...attrs } = deriveRootProps(element.props);
+  const whenPromise = (when ?? Promise.resolve())
     .catch((err) => {
       console.error("[verso] rejection from Root 'when' promise; using null data", err);
       return null;
     });
-  return (
-    <StrictMode>
-      <RootContext.Provider value={data}>
-        {element}
-      </RootContext.Provider>
-    </StrictMode>
-  );
+  return {
+    promise: whenPromise.then((data) => (
+      <StrictMode>
+        <RootContext.Provider value={data}>
+          {element}
+        </RootContext.Provider>
+      </StrictMode>
+    )),
+    attrs,
+  };
 }
 
 export function useRootData<T>(): T {
@@ -73,14 +88,4 @@ export function useRootData<T>(): T {
     throw new Error('[verso] useRootData() called outside a Root!');
   }
   return value as T;
-}
-
-export function renderRootToString(index: number, innerHtml: string) {
-  return `<div ${PAGE_ELEMENT_TOKEN_IDX_ATTR}="${index}" ${PAGE_ROOT_ELEMENT_ATTR}>${innerHtml}</div>\n`;
-}
-
-// for client transitions
-export function setRootAttrs(element: HTMLElement, index: number) {
-  element.setAttribute(PAGE_ELEMENT_TOKEN_IDX_ATTR, String(index));
-  element.setAttribute(PAGE_ROOT_ELEMENT_ATTR, '');
 }

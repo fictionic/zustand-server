@@ -2,11 +2,12 @@ import React from 'react';
 import {makeRootComponent} from '@verso-js/verso';
 import type {IsoStoreInstance} from './core/types';
 import {IsoStoreProvider} from './IsoStoreProvider';
+import type {RenderableHTMLAttributes} from '@verso-js/verso';
 
-interface Props {
+type Props = {
   stores: Array<IsoStoreInstance<any>>;
   children: React.ReactNode;
-}
+} & RenderableHTMLAttributes;
 function StoreRoot({ stores, children }: Props) {
   return (
     <IsoStoreProvider stores={stores}>{children}</IsoStoreProvider>
@@ -15,8 +16,9 @@ function StoreRoot({ stores, children }: Props) {
 
 export default makeRootComponent<Props>(
   StoreRoot,
-  ({ stores }) => ({
+  ({ stores, children: _children, ...attrs }) => ({
     when: Promise.all(stores.map((store) => store.whenReady)).then(() => {}),
     // ^make useRootData return void. children should use the hooks from the stores.
+    ...attrs,
   }),
 );

@@ -7,14 +7,14 @@ import {
   scheduleRootRender,
   useRootData,
   Root,
-  type RootElementType,
+  type AnyRootElement,
 } from '../core/common/components/Root';
 import {
   RootContainer,
-  renderContainerOpen,
-  renderContainerClose,
 } from '../core/common/components/RootContainer';
 import { TheFold } from '../core/common/components/TheFold';
+import { PAGE_ELEMENT_TOKEN_IDX_ATTR } from '../core/common/constants';
+import {renderContainerCloseToString, renderContainerOpenToString} from '../core/server/renderElement';
 
 describe('makeRootComponent', () => {
   test('attaches ROOT_COMPONENT symbol; result is detected by ensureRootElement', () => {
@@ -33,29 +33,53 @@ describe('makeRootComponent', () => {
 });
 
 describe('scheduleRootRender', () => {
-  test('returns a promise that resolves with the rendered element', async () => {
-    const element = <Root>hello</Root> as RootElementType;
-    const result = await scheduleRootRender(element);
-    expect(React.isValidElement(result)).toBe(true);
-    const html = renderToString(result);
+  test('returns { promise, attrs }; promise resolves with the rendered element', async () => {
+    const element = <Root>hello</Root> as AnyRootElement;
+    const { promise, attrs } = scheduleRootRender(element);
+    expect(attrs).toBeDefined();
+    const resolved = await promise;
+    expect(React.isValidElement(resolved)).toBe(true);
+    const html = renderToString(resolved);
     expect(html).toContain('hello');
   });
 
-  test('is delayed by when promise', async () => {
+  test('promise is delayed by when', async () => {
     let resolve!: (v: string) => void;
     const when = new Promise<string>((r) => { resolve = r; });
     const MyRoot = makeRootComponent<{ when?: Promise<string> }>(
       () => null,
       (p) => ({ when: p.when }),
     );
-    const element = React.createElement(MyRoot, { when }) as RootElementType;
+    const element = React.createElement(MyRoot, { when }) as AnyRootElement;
     let settled = false;
-    const promise = scheduleRootRender(element).then((r) => { settled = true; return r; });
+    const promise = scheduleRootRender(element).promise.then((r) => { settled = true; return r; });
     await Promise.resolve();
     expect(settled).toBe(false);
     resolve('data');
     await promise;
     expect(settled).toBe(true);
+  });
+
+  test('attrs surfaces renderable html props returned by deriveRootProps', () => {
+    const MyRoot = makeRootComponent<{ label: string }>(
+      () => null,
+      (p) => ({ id: p.label, className: 'my-class', 'data-foo': 'bar' }),
+    );
+    const element = React.createElement(MyRoot, { label: 'my-id' }) as AnyRootElement;
+    const { attrs } = scheduleRootRender(element);
+    expect(attrs).toEqual({ id: 'my-id', className: 'my-class', 'data-foo': 'bar' });
+  });
+
+  test('when is stripped from attrs', () => {
+    const when = Promise.resolve('x');
+    const MyRoot = makeRootComponent<{ when?: Promise<string> }>(
+      () => null,
+      (p) => ({ when: p.when, id: 'x' }),
+    );
+    const element = React.createElement(MyRoot, { when }) as AnyRootElement;
+    const { attrs } = scheduleRootRender(element);
+    expect(attrs).not.toHaveProperty('when');
+    expect(attrs).toEqual({ id: 'x' });
   });
 });
 
@@ -73,8 +97,8 @@ describe('useRootData', () => {
       () => <Capturer />,
       (p) => ({ when: p.when }),
     );
-    const element = React.createElement(MyRoot, { when }) as RootElementType;
-    const rendered = await scheduleRootRender(element);
+    const element = React.createElement(MyRoot, { when }) as AnyRootElement;
+    const rendered = await scheduleRootRender(element).promise;
     renderToString(rendered);
     expect(captured).toEqual(payload);
   });
@@ -90,8 +114,8 @@ describe('useRootData', () => {
       () => <Capturer />,
       () => ({}),
     );
-    const element = React.createElement(MyRoot) as RootElementType;
-    const rendered = await scheduleRootRender(element);
+    const element = React.createElement(MyRoot) as AnyRootElement;
+    const rendered = await scheduleRootRender(element).promise;
     renderToString(rendered);
     expect(captured).toBeUndefined();
   });
@@ -109,28 +133,28 @@ describe('TheFold', () => {
   });
 });
 
-describe('renderContainerOpen', () => {
+describe('renderContainerOpenToString', () => {
   test('produces div with id, className, and data attributes', () => {
-    const element = (
-      <RootContainer id="my-container" className="my-class" data-foo="bar" />
-    );
-    const html = renderContainerOpen(element, 0);
+    const html = renderContainerOpenToString(0, {
+      id: 'my-container',
+      className: 'my-class',
+      'data-foo': 'bar',
+    });
     expect(html).toContain('id="my-container"');
     expect(html).toContain('class="my-class"');
     expect(html).toContain('data-foo="bar"');
-    expect(html).toContain('data-verso-element-token-idx="0"');
+    expect(html).toContain(`${PAGE_ELEMENT_TOKEN_IDX_ATTR}="0"`);
     expect(html.endsWith('\n')).toBe(true);
     expect(html).not.toContain('</div>');
   });
 
-  test('uses the supplied index for data-verso-element-token-idx', () => {
-    const element = <RootContainer />;
-    expect(renderContainerOpen(element, 3)).toContain('data-verso-element-token-idx="3"');
+  test(`uses the supplied index for ${PAGE_ELEMENT_TOKEN_IDX_ATTR}`, () => {
+    expect(renderContainerOpenToString(3, {})).toContain(`${PAGE_ELEMENT_TOKEN_IDX_ATTR}="3"`);
   });
 });
 
-describe('renderContainerClose', () => {
+describe('renderContainerCloseToString', () => {
   test('produces </div>', () => {
-    expect(renderContainerClose()).toBe('</div>\n');
+    expect(renderContainerCloseToString()).toBe('</div>\n');
   });
 });

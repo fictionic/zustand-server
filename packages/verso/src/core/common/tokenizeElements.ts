@@ -1,6 +1,6 @@
-import React from "react";
-import {RootContainer, type RootContainerElementType} from "./components/RootContainer";
-import {ensureRootElement, type RootElementType} from "./components/Root";
+import {Children, isValidElement} from "react";
+import {RootContainer, type AnyRootContainer} from "./components/RootContainer";
+import {ensureRootElement, type AnyRootElement} from "./components/Root";
 import {TheFold} from "./components/TheFold";
 
 export const TOKEN = {
@@ -12,14 +12,14 @@ export const TOKEN = {
 
 type RootToken = {
   type: typeof TOKEN.ROOT;
-  element: RootElementType;
+  element: AnyRootElement;
 };
 type TheFoldToken = {
   type: typeof TOKEN.THE_FOLD;
 };
 type ContainerOpenToken = {
   type: typeof TOKEN.CONTAINER_OPEN;
-  element: RootContainerElementType;
+  element: AnyRootContainer;
 };
 type ContainerCloseToken = {
   type: typeof TOKEN.CONTAINER_CLOSE;
@@ -44,16 +44,16 @@ export function tokenizeElements(elements: React.ReactElement[]): PageElementTok
 }
 
 function isTheFold(element: React.ReactElement): boolean {
-  return React.isValidElement(element) && element.type === TheFold;
+  return isValidElement(element) && element.type === TheFold;
 }
 
-function isRootContainer(element: React.ReactElement): element is RootContainerElementType {
-  return React.isValidElement(element) && element.type === RootContainer;
+function isRootContainer(element: React.ReactElement): element is AnyRootContainer {
+  return isValidElement(element) && element.type === RootContainer;
 };
 
-export function tokenizeContainer(element: RootContainerElementType): PageElementToken[] {
+export function tokenizeContainer(element: AnyRootContainer): PageElementToken[] {
   const open: ContainerOpenToken = { type: TOKEN.CONTAINER_OPEN, element };
-  const childArray = React.Children.toArray(element.props.children) as React.ReactElement[];
+  const childArray = Children.toArray(element.props.children) as React.ReactElement[];
   const tokenizedChildren: PageElementToken[] = tokenizeElements(childArray);
   const close: ContainerCloseToken = { type: TOKEN.CONTAINER_CLOSE };
   return [open, ...tokenizedChildren, close];

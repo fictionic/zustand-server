@@ -1,19 +1,19 @@
 import type {ReactElement} from "react";
 import {PageElementProcessor} from "../../common/PageElementProcessor";
-import {setContainerAttrs, type RootContainerElementType} from "../../common/components/RootContainer";
 import {getAbortSignal} from "../../common/abort";
 import {PAGE_ELEMENT_TOKEN_IDX_ATTR, PAGE_ROOT_ELEMENT_ATTR} from "../../common/constants";
-import {setRootAttrs} from "../../common/components/Root";
 import {createRoot} from "react-dom/client";
 import {flushSync} from "react-dom";
 import type {ReactRootManager} from "../roots";
 import type {NavigateOptions} from "../controller";
+import {type RenderableHTMLAttributes} from "../../common/components/attrs";
+import {setContainerAttrs, setRootAttrs} from "../setAttrs";
 
 type RenderedElement = |
   {
     kind: 'open';
     index: number;
-    reactElement: RootContainerElementType;
+    attrs: RenderableHTMLAttributes;
   } | {
     kind: 'close';
     index: number;
@@ -21,6 +21,7 @@ type RenderedElement = |
     kind: 'root';
     index: number;
     reactElement: ReactElement,
+    attrs: RenderableHTMLAttributes,
   };
 
 type TargetElement = {
@@ -51,14 +52,14 @@ export class BodyElementTransitioner {
     // we ought to have it too.
     let currentIndex: number = -1;
     const processor = new PageElementProcessor<RenderedElement>({
-      renderContainerOpen: (reactElement, index) => {
-        return { kind: 'open', index, reactElement };
+      renderContainerOpen: (index, attrs) => {
+        return { kind: 'open', index, attrs };
       },
       renderContainerClose: (index) => {
         return { kind: 'close', index };
       },
-      renderRootElement: (reactElement, index) => {
-        return { kind: 'root', index, reactElement };
+      renderRootElement: (index, reactElement, attrs) => {
+        return { kind: 'root', index, reactElement, attrs };
       },
       consumeRenderedElements: (renderedElements) => {
         if (getAbortSignal().aborted) return; // another navigation is about to run
@@ -68,7 +69,7 @@ export class BodyElementTransitioner {
             if (this.tryUpdateExistingDomNodeInPlace(renderedElement)) {
               continue;
             }
-            console.log("[verso] tearing down old dom and writing new page fresh from index ", renderedElement.index);
+            console.log("verso tearing down old dom and writing new page fresh from index ", renderedElement.index);
             this.reusingDom = false;
           }
           if (!this.didTeardownDom) {
@@ -121,16 +122,13 @@ export class BodyElementTransitioner {
 
     switch (renderedElement.kind) {
       case 'open': {
-        for (const attrName of targetDomElement.getAttributeNames()) {
-          targetDomElement.removeAttribute(attrName);
-        }
-        const { reactElement, index } = renderedElement;
-        setContainerAttrs(targetDomElement, reactElement.props, index);
+        const { attrs, index } = renderedElement;
+        setContainerAttrs(targetDomElement, attrs, index);
         this.currentContainer = targetDomElement;
         break;
       }
       case 'root': {
-        const { reactElement, index } = renderedElement;
+        const { reactElement, index, attrs } = renderedElement;
         const previousRootIndex = Number(targetDomElement.getAttribute(PAGE_ELEMENT_TOKEN_IDX_ATTR));
         const reactRoot = this.reactRootManager.getReactRootAndUpdateIndex(previousRootIndex, index);
         if (!reactRoot) {
@@ -139,8 +137,8 @@ export class BodyElementTransitioner {
         }
         // let react reconcile the new fiber tree against the existing dom
         reactRoot.render(reactElement);
-        // update the token index for next time
-        targetDomElement.setAttribute(PAGE_ELEMENT_TOKEN_IDX_ATTR, String(index));
+        // update the attrs
+        setRootAttrs(targetDomElement, attrs, index);
         break;
       }
       default:
@@ -163,9 +161,9 @@ export class BodyElementTransitioner {
   private appendRenderedElementIntoDom(renderedElement: RenderedElement) {
     switch (renderedElement.kind) {
       case 'open': {
-        const { reactElement, index } = renderedElement;
+        const { attrs, index } = renderedElement;
         const newDiv = document.createElement('div');
-        setContainerAttrs(newDiv, reactElement.props, index);
+        setContainerAttrs(newDiv, attrs, index);
         this.currentContainer.appendChild(newDiv);
         this.currentContainer = newDiv;
         break;
@@ -175,14 +173,14 @@ export class BodyElementTransitioner {
         break;
       }
       case 'root': {
-        const { reactElement, index } = renderedElement;
+        const { reactElement, index, attrs } = renderedElement;
         const newNode = document.createElement('div');
-        setRootAttrs(newNode, index)
+        setRootAttrs(newNode, attrs, index)
         this.currentContainer.appendChild(newNode);
         const reactRoot = createRoot(newNode);
         this.reactRootManager.registerReactRoot(reactRoot, index);
         try {
-          // without flushSync, the concurrent scheduler could mount roots out of order (I think)
+          // without flushSync, the concurrent scheduler could mount roots out of order
           flushSync(() => reactRoot.render(reactElement));
         } catch (err) {
           console.error("[verso] error rendering root", err);

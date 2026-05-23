@@ -1,15 +1,26 @@
 import {Fetch} from "../common/fetch/Fetch";
-import {FETCH_CACHE_KEY, FN_ABORT_HYDRATION, FN_HYDRATE_ROOTS_UP_TO, FN_RECEIVE_LATE_DATA_ARRIVAL, FN_SIGNAL_ROOTS_COMPLETE, REQUEST_DATA_KEY, VersoPipe} from "../common/VersoPipe";
+import {
+  FETCH_CACHE_KEY,
+  FN_ABORT_HYDRATION,
+  FN_HYDRATE_ROOTS_UP_TO,
+  FN_RECEIVE_LATE_DATA_ARRIVAL,
+  FN_SIGNAL_ROOTS_COMPLETE,
+  REQUEST_DATA_KEY,
+  VersoPipe,
+} from "../common/VersoPipe";
 import {getScriptAttrs, type Script, type StandardizedPage} from "../common/handler/Page";
 import {renderOpenTag, writeHeader} from "./writeHeader";
-import {renderContainerOpen, renderContainerClose} from '../common/components/RootContainer';
+import {
+  renderContainerOpenToString,
+  renderContainerCloseToString,
+  renderRootToString,
+} from "./renderElement";
 import type {CacheableRequest, CacheEntryData} from "../common/fetch/cache";
 import type {HandlerResponse} from "./response";
 import {cancelAbortTimeout, didAbort} from "../common/abort";
 import {getServerStash} from "./stash";
 import {PageElementProcessor} from "../common/PageElementProcessor";
 import {renderToString} from "react-dom/server";
-import {renderRootToString} from "../common/components/Root";
 import {marshallBody} from "../common/util/body";
 
 export function handlePage(page: StandardizedPage): HandlerResponse {
@@ -56,9 +67,9 @@ export function handlePage(page: StandardizedPage): HandlerResponse {
     };
 
     const processor = new PageElementProcessor<string>({
-      renderContainerOpen,
-      renderContainerClose,
-      renderRootElement: (element, i) => {
+      renderContainerOpen: renderContainerOpenToString,
+      renderContainerClose: renderContainerCloseToString,
+      renderRootElement: (i, element, attrs) => {
         let rootInnerHTML;
         try {
           rootInnerHTML = renderToString(element);
@@ -72,7 +83,7 @@ export function handlePage(page: StandardizedPage): HandlerResponse {
           // discoverable in the browser console
           rootInnerHTML = '';
         }
-        return renderRootToString(i, rootInnerHTML);
+        return renderRootToString(i, rootInnerHTML, attrs);
       },
       onLastProcessedRootIndex: onRoot,
       onProcessedTheFoldIndex: onTheFold,

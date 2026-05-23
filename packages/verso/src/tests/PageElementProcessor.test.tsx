@@ -36,7 +36,7 @@ function rootToken(when: Promise<unknown>): PageElementToken {
   };
 }
 function containerOpenToken(): PageElementToken {
-  return {type: TOKEN.CONTAINER_OPEN, element: {} as any};
+  return {type: TOKEN.CONTAINER_OPEN, element: {props: {}} as any};
 }
 function containerCloseToken(): PageElementToken {
   return {type: TOKEN.CONTAINER_CLOSE};
@@ -57,7 +57,7 @@ function makeProcessor(opts: Partial<ProcessorOpts<string | null>> = {}) {
     renderContainerClose: opts.renderContainerClose ?? (() => null),
     // index is the token-position index (not a root-position index), so for
     // a token sequence like [CO, root, CC], the root's index is 1.
-    renderRootElement: opts.renderRootElement ?? ((_e, i) => `R${i}`),
+    renderRootElement: opts.renderRootElement ?? ((i) => `R${i}`),
     onLastProcessedRootIndex: opts.onLastProcessedRootIndex ?? (() => {}),
     onProcessedTheFoldIndex: opts.onProcessedTheFoldIndex ?? (() => {}),
     consumeRenderedElements: opts.consumeRenderedElements ?? (() => {}),

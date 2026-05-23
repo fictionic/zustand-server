@@ -1,9 +1,9 @@
 import type {ReactElement} from 'react';
 import {TOKEN, tokenizeElements, type PageElementToken} from '../common/tokenizeElements';
 import {scheduleRootRender} from './components/Root';
-import type {RootContainerElementType} from './components/RootContainer';
 import {getAbortPromise} from './abort';
 import type {MaybePromise} from './util/types';
+import type {RenderableHTMLAttributes} from './components/attrs';
 
 const TOKEN_STATUS = {
   PENDING: 'PENDING',
@@ -19,9 +19,9 @@ type ProcessableToken<T> = {
 };
 
 export type ProcessorOpts<RenderedElement> = {
-  renderContainerOpen: (element: RootContainerElementType, index: number) => RenderedElement,
+  renderContainerOpen: (index: number, attrs: RenderableHTMLAttributes) => RenderedElement,
   renderContainerClose: (index: number) => RenderedElement,
-  renderRootElement: (element: ReactElement, index: number) => RenderedElement,
+  renderRootElement: (index: number, element: ReactElement, attrs: RenderableHTMLAttributes) => RenderedElement,
   onLastProcessedRootIndex?: (index: number) => void,
   onProcessedTheFoldIndex?: (index: number) => MaybePromise<void>,
   consumeRenderedElements: (renderedElements: RenderedElement[]) => void,
@@ -71,10 +71,12 @@ export class PageElementProcessor<RenderedElement> {
         rendered: null,
       };
       switch (token.type) {
-        case TOKEN.CONTAINER_OPEN:
+        case TOKEN.CONTAINER_OPEN: {
           processable.status = TOKEN_STATUS.RENDERED;
-          processable.rendered = this.opts.renderContainerOpen(token.element, i);
+          const { children: _children, ...attrs } = token.element.props;
+          processable.rendered = this.opts.renderContainerOpen(i, attrs);
           break;
+        }
         case TOKEN.CONTAINER_CLOSE:
           processable.status = TOKEN_STATUS.RENDERED;
           processable.rendered = this.opts.renderContainerClose(i);
@@ -83,16 +85,17 @@ export class PageElementProcessor<RenderedElement> {
           processable.status = TOKEN_STATUS.RENDERED;
           // the fold is just a control element; nothing to render
           break;
-        case TOKEN.ROOT:
-          const promise = scheduleRootRender(token.element)
-            .then(async (resolved) => {
-              if (processable.status === TOKEN_STATUS.ABORTED) return;
-              processable.rendered = this.opts.renderRootElement(resolved, i);
-              processable.status = TOKEN_STATUS.RENDERED;
-              await this.walk();
-            });
-          rootPromises.push(promise);
+        case TOKEN.ROOT: {
+          const { promise, attrs } = scheduleRootRender(token.element);
+          const renderPromise = promise.then(async (reactElement) => {
+            if (processable.status === TOKEN_STATUS.ABORTED) return;
+            processable.rendered = this.opts.renderRootElement(i, reactElement, attrs);
+            processable.status = TOKEN_STATUS.RENDERED;
+            await this.walk();
+          });
+          rootPromises.push(renderPromise);
           break;
+        }
         default:
           token satisfies never;
       }
