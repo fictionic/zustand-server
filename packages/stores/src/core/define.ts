@@ -23,7 +23,6 @@ import {
   type OnMessage,
   type ProviderID,
   type UseCreateClientStore,
-  type CreateStoreArgs,
   type WaitFor,
   type SetAsync,
   type SetNonBlockingAsync,
@@ -55,8 +54,7 @@ export function defineIsoStore<Opts, State extends object, Message, NativeStoreI
 
   const instancesByProvider: Map<ProviderID, InternalIsoStoreInstance<NativeStore>> = new Map();
 
-  const createStore = (...args: CreateStoreArgs<Opts>): InternalIsoStoreInstance<NativeStore> => {
-    const opts = args[0] as Opts;
+  const createStore = (opts: Opts): InternalIsoStoreInstance<NativeStore> => {
     const asyncKeys = new Set<keyof State>();
     const blocking: Set<PendingValue<any>> = new Set();
     const nonBlocking: Set<PendingValue<any>> = new Set();
@@ -150,14 +148,14 @@ export function defineIsoStore<Opts, State extends object, Message, NativeStoreI
     return instance.nativeStore;
   });
 
-  const useCreateClientStore: UseCreateClientStore<Opts, ClientHooksOf<A>> = (...args) => {
+  const useCreateClientStore: UseCreateClientStore<Opts, ClientHooksOf<A>> = (opts) => {
     const [ready, setReady] = useState<boolean>(false);
     const instanceRef = useRef<InternalIsoStoreInstance<NativeStore> | null>(null);
 
     const providerId = useMemo(() => Symbol() as ProviderID, []);
 
     useEffect(() => {
-      const instance = createStore(...args); // ideally we'd support rerendering based on changes to opts
+      const instance = createStore(opts); // ideally we'd support rerendering based on changes to opts
       instance.whenReady.then(() => {
         setReady(true);
       });

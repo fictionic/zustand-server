@@ -24,13 +24,10 @@ export type StoreProvider<NativeStore> = React.FC<{
 
 export type SendMessage<Message> = (message: Message) => void;
 
-export type UseCreateClientStore<Opts, NativeClientHooks> = (...args: CreateStoreArgs<Opts>) => readonly [ready: boolean, clientHooks: NativeClientHooks];
-
-// allow createStore args to be optional
-export type CreateStoreArgs<Opts> = Opts extends void ? [] : [opts: Opts];
+export type UseCreateClientStore<Opts, NativeClientHooks> = (opts: Opts) => readonly [ready: boolean, clientHooks: NativeClientHooks];
 
 export interface IsoStoreDefinition<Opts, Message, NativeStore, NativeHooks extends AllFunctions<NativeHooks>, NativeClientHooks extends AllFunctions<NativeClientHooks>> {
-  createStore: (...args: CreateStoreArgs<Opts>) => IsoStoreInstance<NativeStore>;
+  createStore: (opts: Opts) => IsoStoreInstance<NativeStore>;
   hooks: NativeHooks;
   useCreateClientStore: UseCreateClientStore<Opts, NativeClientHooks>;
   broadcast: SendMessage<Message>;
@@ -50,7 +47,7 @@ export interface InternalIsoStoreInstance<NativeStore> extends IsoStoreInstance<
 }
 
 export interface InternalIsoStoreDefinition<Opts, Message, NativeStore, NativeHooks extends AllFunctions<NativeHooks>, NativeClientHooks extends AllFunctions<NativeClientHooks>> extends IsoStoreDefinition<Opts, Message, NativeStore, NativeHooks, NativeClientHooks> {
-  createStore: (...args: CreateStoreArgs<Opts>) => InternalIsoStoreInstance<NativeStore>;
+  createStore: (opts: Opts) => InternalIsoStoreInstance<NativeStore>;
   [STORE_DEFINITION_INTERNALS]: {
     instancesByProvider: Map<ProviderID, InternalIsoStoreInstance<NativeStore>>;
     StoreProvider: StoreProvider<NativeStore>;

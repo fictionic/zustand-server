@@ -1,6 +1,5 @@
-import {asSingleton, type IsoStoreDefinition, type IsoStoreInstance} from "../dist";
+import {asSingleton, type IsoStoreDefinition, type IsoStoreInstance} from "./index";
 import {defineIsoStore, type Adapter, type IsoStoreInit} from "./adapter";
-import type {CreateStoreArgs} from "./core/types";
 
 /**
  * A minimal store adapter for the common case of fetching a single async
@@ -69,7 +68,7 @@ const defineAsyncAtomStore = <T, Opts = void>(getPromise: (opts: Opts) => Promis
 };
 
 export interface AtomDefinition<T, Opts> {
-  createAtom: (...args: CreateStoreArgs<Opts>) => IsoStoreInstance<Atom<T>>;
+  createAtom: (opts: Opts) => IsoStoreInstance<Atom<T>>;
   useValue: () => T;
 }
 
