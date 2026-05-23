@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { makeIsomorphicRequest, UntrustedHostError } from '../core/server/makeIsomorphicRequest';
 import { fillServerSettings, type ServerSettings } from '../build/config';
+import { devOnly } from '../userland/testing/dev';
 import { serverSide } from '../userland/testing/isomorphic';
 
 function settings(overrides: Partial<ServerSettings> = {}): ServerSettings {
@@ -213,13 +214,25 @@ serverSide(() => {
     });
 
     describe('localhost dev bypass', () => {
-      // These exercise the `globalThis.IS_DEV && LOCAL_HOSTS.includes(...)` branch.
-      // The vitest config bakes `globalThis.IS_DEV` to `false` at compile time, so
-      // the branch is unreachable from this config. Would need a parallel test config
-      // with `IS_DEV: true` to cover.
-      test.todo('bypasses allowedHosts for localhost when IS_DEV is true');
-      test.todo('bypasses allowedHosts for 127.0.0.1 when IS_DEV is true');
-      test.todo('still rejects non-local hosts when IS_DEV is true');
+      devOnly(() => {
+        test('bypasses allowedHosts for localhost when IS_DEV is true', () => {
+          const raw = new Request('http://localhost/foo');
+          const result = makeIsomorphicRequest(raw, settings({ allowedHosts: ['myapp.com'] }));
+          expect(result.url).toBe('http://localhost/foo');
+        });
+
+        test('bypasses allowedHosts for 127.0.0.1 when IS_DEV is true', () => {
+          const raw = new Request('http://127.0.0.1/foo');
+          const result = makeIsomorphicRequest(raw, settings({ allowedHosts: ['myapp.com'] }));
+          expect(result.url).toBe('http://127.0.0.1/foo');
+        });
+
+        test('still rejects non-local hosts when IS_DEV is true', () => {
+          const raw = new Request('http://evil.com/foo');
+          expect(() => makeIsomorphicRequest(raw, settings({ allowedHosts: ['myapp.com'] })))
+            .toThrow(UntrustedHostError);
+        });
+      });
 
       test('does not bypass for localhost when IS_DEV is false', () => {
         const raw = new Request('http://localhost/foo');
