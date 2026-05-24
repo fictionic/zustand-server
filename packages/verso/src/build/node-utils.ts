@@ -1,11 +1,14 @@
 import type http from 'node:http';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
+import {TLSSocket} from 'node:tls';
 
 export function toURL(nodeReq: http.IncomingMessage): URL {
-  const proto = nodeReq.headers['x-forwarded-proto'] ?? 'http';
+  const encrypted = nodeReq.socket instanceof TLSSocket && nodeReq.socket.encrypted === true;
+  const proto = encrypted ? 'https' : 'http';
   const host = nodeReq.headers.host ?? `localhost:0`;
-  return new URL(nodeReq.url ?? '/', `${proto}://${host}`);
+  const path = nodeReq.url ?? '/';
+  return new URL(path, `${proto}://${host}`);
 }
 
 export function toWebRequest(nodeReq: http.IncomingMessage, nodeRes: http.ServerResponse, url: URL): Request {
