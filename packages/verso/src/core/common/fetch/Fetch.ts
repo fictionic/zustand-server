@@ -132,7 +132,7 @@ async function fetch(rawUrl: string, rawInit: VersoFetchInit = {}, overrideSetti
           cache.evictRequest(req, res);
         } else {
           // cache the response for transport
-          cache.receiveResponse(req, res);
+          await cache.receiveResponse(req, res);
         }
       } catch (error: any) {
         cache.receiveError(req, error);
