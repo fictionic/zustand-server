@@ -21,14 +21,11 @@ declare module './RouteHandler' {
 }
 
 export interface PageOptionalMethods {
-  getTitle(): string | null;
-  getSystemStylesheets(): MaybePromise<Stylesheet[]>;
-  getStylesheets(): Stylesheet[];
-  getSystemScripts(): MaybePromise<Script[]>;
-  getScripts(): Script[];
-  getSystemLinkTags(): MaybePromise<LinkTag[]>;
-  getLinkTags(): LinkTag[];
-  getMetaTags(): MetaTag[];
+  getTitle(): MaybePromise<string | null>;
+  getStylesheets(): MaybePromise<Stylesheet[]>;
+  getScripts(): MaybePromise<Script[]>;
+  getLinkTags(): MaybePromise<LinkTag[]>;
+  getMetaTags(): MaybePromise<MetaTag[]>;
   getBodyClasses(): MaybePromise<string[]>;
   // TODO: getBodyStartContent
 }
@@ -49,11 +46,8 @@ const PAGE_REQUIRED_METHOD_NAMES: (keyof PageRequiredMethods)[] = ['getElements'
 
 const PAGE_OPTIONAL_METHOD_DEFAULTS: PageOptionalMethods = {
   getTitle: () => null,
-  getSystemStylesheets: () => [],
   getStylesheets: () => [],
-  getSystemScripts: () => [],
   getScripts: () => [],
-  getSystemLinkTags: () => [],
   getLinkTags: () => [],
   getMetaTags: () => [],
   getBodyClasses: () => [],

@@ -132,7 +132,7 @@ export function handlePage(page: StandardizedPage): HandlerResponse {
       url: request.url,
       body: await marshallBody(request.clone()),
     });
-    for (const script of [...await page.getSystemScripts(), ...page.getScripts()]) {
+    for (const script of await page.getScripts()) {
       write(renderScript(script));
     }
     hydrateRootsUpTo(theFoldIndex - 1);

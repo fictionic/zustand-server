@@ -3,12 +3,10 @@ import type {StandardizedPage, Stylesheet, LinkTag, MetaTag, Attrs} from "../com
 
 export async function writeHeader(page: StandardizedPage, write: (html: string) => void) {
   write('<meta charset="utf-8">'); // doesn't affect the browser but nice to have
-  write(renderMetaTags(page.getMetaTags()));
-  write(renderTitle(page.getTitle()));
-  write(renderLinkTags(await page.getSystemLinkTags()));
-  write(renderLinkTags(page.getLinkTags()));
-  write(renderStylesheets(await page.getSystemStylesheets()));
-  write(renderStylesheets(page.getStylesheets()));
+  write(renderMetaTags(await page.getMetaTags()));
+  write(renderTitle(await page.getTitle()));
+  write(renderLinkTags(await page.getLinkTags()));
+  write(renderStylesheets(await page.getStylesheets()));
 }
 
 function renderMetaTags(tags: MetaTag[]): string {

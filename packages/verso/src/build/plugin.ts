@@ -351,6 +351,7 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
         const siteMiddleware = await Promise.all(
           siteMiddlewarePaths.map((modulePath) => importWithVite<MiddlewareDefinition>(vite, modulePath))
         );
+        // systemMiddleware has to come first, so page modules + assets are loaded before any userland assets
         const globalMiddleware: Array<MiddlewareDefinition> = [...systemMiddleware, ...siteMiddleware];
 
         const getRouteHandler = async (routeName: string) => {

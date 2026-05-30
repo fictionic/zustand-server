@@ -46,6 +46,7 @@ export async function buildServer(
     globalModulePreloadUrls: [MANIFEST_URL],
   });
 
+  // systemMiddleware has to come first, so bundles are fetched before any userland assets
   const systemMiddleware = [bundleLoader];
   const globalMiddleware = [...systemMiddleware, ...middleware];
   const getRouteHandler: GetRouteHandler = (routeName: string) => routeHandlers[routeName] ?? null;

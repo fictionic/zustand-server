@@ -226,16 +226,13 @@ export class ClientController {
       }
 
       // =header=
-      document.title = page.getTitle() ?? ''; // no way to unset title; technically sort of non-isomorphic
+      document.title = await page.getTitle() ?? ''; // no way to unset title; technically sort of non-isomorphic
 
       // update links. can just blindly throw away old ones and add new ones
       document.querySelectorAll(`[${PAGE_HEADER_LINK_ELEMENT_ATTR}]`).forEach(node => {
         node.parentNode?.removeChild(node);
       });
-      const linkTags = [
-        ...await page.getSystemLinkTags(),
-        ...page.getLinkTags(),
-      ];
+      const linkTags = await page.getLinkTags();
       linkTags.forEach((link) => {
         const node = document.createElement('link');
         setNodeAttrs(node, getLinkTagAttrs(link));
@@ -244,20 +241,15 @@ export class ClientController {
 
       // update meta tags. throw away old ones and add new ones
       document.head.querySelectorAll('meta').forEach(node => node.parentNode?.removeChild(node));
-      page.getMetaTags().forEach((tag) => renderMetaTag(tag));
+      const metaTags = await page.getMetaTags();
+      metaTags.forEach((tag) => renderMetaTag(tag));
 
       // update styles. have to take care to avoid FOUC
-      const stylesheets = [
-        ...await page.getSystemStylesheets(),
-        ...page.getStylesheets(),
-      ];
+      const stylesheets = await page.getStylesheets();
       const cleanupPreviousStyles = await this.styleTransitioner.transitionStyles(routeName, stylesheets);
 
       // update scripts. track each one and only add new ones
-      const scripts = [
-        ...await page.getSystemScripts(),
-        ...page.getScripts()
-      ];
+      const scripts = await page.getScripts();
       this.scriptTransitioner.transitionScripts(scripts);
 
       // =body=
