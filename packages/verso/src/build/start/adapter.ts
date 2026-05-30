@@ -1,10 +1,11 @@
-import type {BundleResult} from "../bundle";
+import type {HandleRequest} from "../../core/server/handleRequest";
+import type {ServerAssets} from "../bundle";
 import type {ServerEntry} from "../entrypoint";
 
 export interface RuntimeAdapter {
-  loadAssets(): Promise<BundleResult>;
+  loadAssets(): Promise<ServerAssets>;
   loadServerEntry(): Promise<ServerEntry>;
-  serve(handler: (req: Request) => Promise<Response>, opts: ServeOptions): Promise<ServerHandle>;
+  serve(handleRequest: HandleRequest, opts: ServeOptions): Promise<ServerHandle>;
 }
 
 export type ServeOptions = {

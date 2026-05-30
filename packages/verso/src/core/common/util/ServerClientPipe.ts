@@ -26,8 +26,10 @@ const PIPE_READER_INIT = `{
 
 export const createPipe = <Schema extends PipeSchema>(pipeName: string) => ({
   writer(write: (html: string) => void) {
-    write(`<script>window.${pipeName} = ${PIPE_READER_INIT};</script>`);
     return {
+      init: () => {
+        write(`<script>window.${pipeName} = ${PIPE_READER_INIT};</script>`);
+      },
       writeValue: <K extends keyof Schema['data']>(key: K, value: Schema['data'][K]) => {
         write(`<script>window.${pipeName}.data['${key as string}'] = ${serialize(value)}</script>`);
       },

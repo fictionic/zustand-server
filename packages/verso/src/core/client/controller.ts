@@ -5,12 +5,10 @@ import {scheduleRootRender} from "../common/components/Root";
 import {PAGE_ELEMENT_TOKEN_IDX_ATTR, PAGE_HEADER_LINK_ELEMENT_ATTR, PAGE_ROOT_ELEMENT_ATTR} from "../common/constants";
 import {FETCH_CACHE_KEY, FN_ABORT_HYDRATION, FN_HYDRATE_ROOTS_UP_TO, FN_RECEIVE_LATE_DATA_ARRIVAL, FN_SIGNAL_ROOTS_COMPLETE, REQUEST_DATA_KEY, VersoPipe} from "../common/VersoPipe";
 import {Fetch} from "../common/fetch/Fetch";
-import {startClientRequest} from "../common/RequestLocalStorage";
 import {StyleTransitioner} from "./transitioners/styles";
 import { ScriptTransitioner } from "./transitioners/scripts";
 import type {BundleManifest} from "../../build/bundle";
 import {HistoryManager, type NavigationDirection, type OnPopState} from "./history";
-import {initAbortController} from "../common/abort";
 import {ClientNavigationManager, type StartNavigation, type CommitNavigation} from "./navigation";
 import {BodyElementTransitioner} from "./transitioners/body";
 import {ReactRootManager} from "./roots";
@@ -106,31 +104,22 @@ export class ClientController {
       }
     }
 
-    const start: StartNavigation = () => {
-      startClientRequest();
-
-      const abortController = initAbortController();
-
+    const start: StartNavigation = (signal) => {
       const fetchCache = readablePipe.readValue(FETCH_CACHE_KEY);
       if (!fetchCache) {
         console.error("[verso] hydration error: missing fetch cache! fetch() calls will be re-executed");
       }
       Fetch.clientInit(fetchCache ?? {});
 
+      signal.addEventListener('abort', () => abortHydration());
+
       const { body } = serverRequestData;
-      const req = new Request(url, {
+
+      return new Request(url, {
         method: method,
         body: unmarshallBody(body),
-        signal: abortController.signal, // cancel any fetch() requests that miss the cache
+        signal, // cancel any fetch() requests that miss the cache
       });
-
-      return {
-        req,
-        interrupt: () => {
-          abortController.abort('interrupted by navigation');
-          abortHydration();
-        },
-      };
     };
 
     const commit: CommitNavigation = async ({ page, url }) => {
@@ -219,19 +208,12 @@ export class ClientController {
       this.historyManager.stampHistoryFrame(options);
     }
 
-    const start: StartNavigation = () => {
-      startClientRequest(); // new page chain, new RLS context
+    const start: StartNavigation = (signal) => {
       Fetch.clientInit(); // just initiate an empty cache, since Fetch assumes it'll exist
-      const abortController = initAbortController();
-      return {
-        req: new Request(requestedUrl, {
-          method: 'GET', // client navigations are always GET
-          signal: abortController.signal,
-        }),
-        interrupt: () => {
-          abortController.abort('interrupted by navigation');
-        },
-      };
+      return new Request(requestedUrl, {
+        method: 'GET', // client navigations are always GET
+        signal,
+      });
     };
 
     const commit: CommitNavigation = async ({ page, routeName, url: resolvedUrl }) => {

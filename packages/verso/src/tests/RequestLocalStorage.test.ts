@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'vitest';
-import { getRLS, resetClientRequest, startClientRequest, startRequest } from '../core/common/RequestLocalStorage';
+import { getRLS, stopClientRLS, startClientRLS, runWithServerRLS } from '../core/common/RequestLocalStorage';
 import { clientSide, serverSide } from '../userland/testing/isomorphic';
 
 describe('RequestLocalStorage', () => {
@@ -13,7 +13,7 @@ describe('RequestLocalStorage', () => {
   serverSide(() => {
     test('startRequest runs callback in ALS context; getRLS() works inside', () => {
       const RLS = getRLS<{ count: number }>();
-      startRequest(() => {
+      runWithServerRLS(() => {
         RLS().count = 42;
         expect(RLS().count).toBe(42);
       });
@@ -28,12 +28,12 @@ describe('RequestLocalStorage', () => {
       const RLS = getRLS<{ value: string }>();
 
       const [val1, val2] = await Promise.all([
-        startRequest(async () => {
+        runWithServerRLS(async () => {
           RLS().value = 'A';
           await Promise.resolve();
           return RLS().value;
         }),
-        startRequest(async () => {
+        runWithServerRLS(async () => {
           RLS().value = 'B';
           await Promise.resolve();
           return RLS().value;
@@ -47,34 +47,34 @@ describe('RequestLocalStorage', () => {
 
   clientSide(() => {
     afterEach(() => {
-      resetClientRequest();
+      stopClientRLS();
     });
 
     test('startClientRequest initializes the store; getRLS() works inside', () => {
       const RLS = getRLS<{ value: string }>();
       expect(() => RLS()).toThrow('RLS() access outside of request!');
 
-      startClientRequest();
+      startClientRLS();
       RLS().value = 'hello';
       expect(RLS().value).toBe('hello');
     });
 
     test('resetClientRequest tears down the store; getRLS() throws after', () => {
       const RLS = getRLS<{ value: string }>();
-      startClientRequest();
+      startClientRLS();
       RLS().value = 'test';
 
-      resetClientRequest();
+      stopClientRLS();
       expect(() => RLS()).toThrow('RLS() access outside of request!');
     });
 
     test('startClientRequest creates a fresh store each time', () => {
       const RLS = getRLS<{ value?: string }>();
-      startClientRequest();
+      startClientRLS();
       RLS().value = 'first';
-      resetClientRequest();
+      stopClientRLS();
 
-      startClientRequest();
+      startClientRLS();
       expect(RLS().value).toBeUndefined();
     });
   });

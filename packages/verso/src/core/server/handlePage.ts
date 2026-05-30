@@ -17,11 +17,11 @@ import {
 } from "./renderElement";
 import type {CacheableRequest, CacheEntryData} from "../common/fetch/cache";
 import type {HandlerResponse} from "./response";
-import {cancelAbortTimeout, didAbort} from "../common/abort";
 import {getServerStash} from "./stash";
 import {PageElementProcessor} from "../common/PageElementProcessor";
 import {renderToString} from "react-dom/server";
 import {marshallBody} from "../common/util/body";
+import {didAbort} from "../common/abort";
 
 export function handlePage(page: StandardizedPage): HandlerResponse {
   const { readable, writable } = new TransformStream<Uint8Array>();
@@ -40,6 +40,8 @@ export function handlePage(page: StandardizedPage): HandlerResponse {
     await writeHeader(page, write);
     write(`</head>`);
     flush(); // initiate preloads asap
+
+    writeablePipe.init(); // send down the pipe init script
 
     // this is where the fun begins...
     write(await renderBodyOpen());
@@ -172,7 +174,6 @@ export function handlePage(page: StandardizedPage): HandlerResponse {
     console.error("[verso] unexpected error writing page", err);
   }).then(() => {
     close();
-    cancelAbortTimeout();
   });
 
   return {

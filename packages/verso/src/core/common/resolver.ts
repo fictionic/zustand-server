@@ -34,6 +34,7 @@ export function createResolver(routes: RoutesMap, getRouteHandler: GetRouteHandl
       const url = new URL(req.url);
       const route = router.matchRoute(url.pathname + url.search, req.method);
       if (!route) {
+        console.log("[verso] no route match for request", req.url);
         return { kind: 'not-found' };
       }
       const { routeName } = route;

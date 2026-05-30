@@ -8,18 +8,18 @@ if (globalThis.IS_SERVER) {
   als = new AsyncLocalStorage<ModuleNamespaces>();
 }
 
-export function startRequest<R>(fn: () => R): R {
+export function runWithServerRLS<R>(fn: () => R): R {
   if (!als) throw new Error('startRequest requires a server environment');
   return als.run(new Map(), fn);
 }
 
 let clientStore: ModuleNamespaces | null = null;
 
-export function startClientRequest(): void {
+export function startClientRLS(): void {
   clientStore = new Map();
 }
 
-export function resetClientRequest(): void {
+export function stopClientRLS(): void {
   clientStore = null;
 }
 

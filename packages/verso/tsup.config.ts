@@ -18,11 +18,11 @@ export default defineConfig([
     name: 'runtime',
     entry: {
       index: 'src/entries/index.ts',
-      build: 'src/entries/build.ts',
-      server: 'src/entries/server.ts',
-      bootstrap: 'src/entries/bootstrap.ts',
-      plugin: 'src/entries/plugin.ts',
       config: 'src/entries/config.ts',
+      plugin: 'src/entries/plugin.ts',
+      build: `src/entries/build.ts`,
+      server: 'src/entries/server.ts',
+      client: 'src/entries/client.ts',
       testing: 'src/entries/testing.ts',
     },
     outDir: 'dist',
@@ -43,6 +43,7 @@ export default defineConfig([
     // so dist/plugin.js (loaded lazily) sees defined values.
     banner: {
       js: '#!/usr/bin/env node\nglobalThis.IS_SERVER = true; globalThis.IS_DEV = false;',
+      // TODO: do we still need those globals here?
     },
     async onSuccess() {
       await chmod(join('dist', 'cli.js'), 0o755);

@@ -41,8 +41,8 @@ export function setFetchInterceptor(interceptor: FetchRequestInterceptor) {
 
 function serverInit(
   nativeRequest: Request,
-  serverSettings: ServerSettings,
   loopback: HandleRequest,
+  serverSettings: ServerSettings,
 ) {
   RLS().cache = new FetchCache();
   RLS().requestOrigin = new URL(nativeRequest.url).origin;

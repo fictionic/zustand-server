@@ -55,14 +55,13 @@ export class VersoRequest implements Body {
   }
 
   /**
-   * Server-side: returns a clone of the raw Request object received by the server.
-   * Contains HTTP headers, which might not be trustworthy (e.g. Host header injection).
-   * Use with care.
+   * Server-side: returns a clone of the Request object representing the HTTP request
+   * received by the server. Use if you need to inspect HTTP request headers.
    *
    * Client-side: returns null.
    */
-  getRawServerRequest(): Request | null {
-    return isServer() ? getServerStash().rawRequest.clone() : null;
+  getServerRequest(): Request | null {
+    return isServer() ? getServerStash().request.clone() : null;
   }
 
   private clonedReq() {

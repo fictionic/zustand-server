@@ -1,13 +1,14 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {fillClientSettings, fillServerSettings, type ServerSettings, type VersoConfig} from './config';
-import type {CreateVersoServer} from './createVersoServer';
-import type {BundleResult} from './bundle';
+import type {BuildServer} from './buildServer';
+import type {ServerAssets} from './bundle';
+import {MANIFEST_URL, VERSO_ENTRY} from './constants';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const BOOTSTRAP_PATH = path.resolve(__dirname, 'bootstrap.js');
-const BUILD_PATH = path.resolve(__dirname, 'build.js');
+const BOOTSTRAP_PATH = path.resolve(__dirname, VERSO_ENTRY.bootstrap);
+const BUILDSERVER_PATH = path.resolve(__dirname, VERSO_ENTRY.buildServer);
 
 export interface EntrypointGenerator {
   generateClientEntrypoint(): string;
@@ -43,7 +44,7 @@ export function getEntrypointGenerator(
       } = generateStaticImports(middlewarePaths, 'middleware');
 
       const manifest = writeManifest ?
-        "await import(/* @vite-ignore */ '/bundles/manifest.js?v=' + __BUILD_ID__).then(m => m.default)" : // we've preloaded this so it should be instant
+        `await import(/* @vite-ignore */ ${quote(MANIFEST_URL)} + '?v=' + __BUILD_ID__).then(m => m.default)` : // we've preloaded this so it should be instant
         "null"; // not needed in dev mode -- vite handles css on client transitions
 
       return `
@@ -89,7 +90,7 @@ bootstrap(routes, pageLoaders, middleware, manifest, clientSettings);
       }  = generateStaticImports(middlewarePaths, 'middleware');
 
       return `
-import { createVersoServer } from ${quote(BUILD_PATH)};
+import { buildServer } from ${quote(BUILDSERVER_PATH)};
 
 const routes = ${JSON.stringify(routes)};
 
@@ -103,12 +104,12 @@ const middleware = [${middlewareImportNames.join(',\n')}];
 
 const serverSettings = ${JSON.stringify(serverSettings)};
 
-export function getServer(bundleResult) {
-  return createVersoServer(
+export function getServer(serverAssets) {
+  return buildServer(
     routes,
     routeHandlers,
     middleware,
-    bundleResult,
+    serverAssets,
     serverSettings,
   );
 }
@@ -122,7 +123,7 @@ export function getSettings() {
 };
 
 export type ServerEntry = {
-  getServer(b: BundleResult): ReturnType<CreateVersoServer>;
+  getServer(b: ServerAssets): ReturnType<BuildServer>;
   getSettings(): ServerSettings;
 };
 

@@ -1,1 +1,1 @@
-export { createVersoServer } from '../build/createVersoServer';
+export { buildServer } from '../build/buildServer';

@@ -1,12 +1,10 @@
-import {getAbortPromise} from "../common/abort";
+import {getAbortPromise, initAbort} from "../common/abort";
 import type {StandardizedPage} from "../common/handler/Page";
+import {startClientRLS} from "../common/RequestLocalStorage";
 import type {Resolver} from "../common/resolver";
 import {TaskRunner} from "./task";
 
-export type StartNavigation = () => {
-  req: Request;
-  interrupt: () => void;
-};
+export type StartNavigation = (signal: AbortSignal) => Request;
 export type CommitNavigation = (result: PageResolution) => Promise<void>;
 export type PageResolution = {
   page: StandardizedPage;
@@ -58,7 +56,11 @@ export class ClientNavigationManager {
 
   async requestNavigation(start: StartNavigation, commit: CommitNavigation) {
     const task = () => {
-      const { req, interrupt } = start();
+      startClientRLS();
+      const abortController = new AbortController();
+      const { signal } = abortController;
+      initAbort(signal);
+      const req = start(signal);
       this.setPending(req.url);
       const promise = Promise.race([
         this.getPageResolution(req),
@@ -66,13 +68,15 @@ export class ClientNavigationManager {
       ])
         .then(async (result) => {
           await commit(result);
-          if (!req.signal.aborted) {
+          if (!signal.aborted) {
             this.setIdle(result);
           }
         });
       return {
         promise,
-        interrupt,
+        interrupt: () => {
+          abortController.abort(new Error('interrupted by subsequent navigation'));
+        },
       };
     }
     try {

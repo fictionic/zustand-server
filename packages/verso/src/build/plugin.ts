@@ -7,23 +7,25 @@ import { fillServerSettings, type RoutesMap, type VersoConfig } from './config';
 import type { RouteHandler } from '../core/common/handler/RouteHandler';
 import type { Script, Stylesheet } from '../core/common/handler/Page';
 import type { BundleManifest } from './bundle';
-import { BUNDLES_DIR, MANIFEST_PATH, SERVER_BUNDLES_DIR, SERVER_ENTRY_PATH } from './constants';
+import { BUILT_STATIC_DIRNAME, CLIENT_BUNDLE_DIR, clientAssetPathToUrl, DEFAULT_OUTDIR, MANIFEST_FILENAME, SERVER_BUNDLE_DIR, SERVER_ENTRY_FILENAME, VERSO_ENTRY } from './constants';
 import { DEV_ROUTE_CSS_PATH } from '../core/common/constants';
 import { createViteBundleLoader } from './ViteBundleLoader';
-import { toURL, toWebRequest, sendWebResponse } from './node-utils';
+import { toWebRequest } from '../vendor/hattip/node-request';
+import { sendWebResponse } from '../vendor/hattip/node-response';
 import { getEntrypointGenerator, type EntrypointGenerator } from './entrypoint';
 import { createJiti, type Jiti } from 'jiti';
-import { html500 } from '../core/server/errorPages';
 import type {MakeHandleRequest} from '../core/server/handleRequest';
 import type { MiddlewareDefinition } from '../core/common/handler/Middleware';
 import {createResolver} from '../core/common/resolver';
+import type {RequestHandler} from '../vendor/hattip/compose';
+import {cpSync, existsSync, mkdirSync, rmSync} from 'node:fs';
 
 const VERSO_CONFIG_FILE_NAME = 'verso.config.ts';
 
 const VERSO_DIST_ROOT = path.dirname(fileURLToPath(import.meta.url)); // we are running from dist/plugin.js
 
-// some modules we have to import dynamically through the vite module graph
-const SERVER_PATH = path.resolve(VERSO_DIST_ROOT, 'server.js');
+// in the dev server we have to import makeHandleRequest through the vite module graph
+const SERVER_PATH = path.resolve(VERSO_DIST_ROOT, VERSO_ENTRY.makeHandleRequest);
 
 const CLIENT_ENTRY_VIRTUAL_ID = 'virtual:verso/entry';
 const CLIENT_ENTRY_RESOLVED_ID = '\0' + CLIENT_ENTRY_VIRTUAL_ID;
@@ -45,8 +47,8 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
 
   // populated in configResolved
   let resolvedRootDir: string | null = null;
-  let resolvedOutDir: string | null = null;
   let entrypointGenerator: EntrypointGenerator | null = null;
+  let resolvedSharedOutDir: string | null = null;
 
   // populated lazily in buildStart / configureServer
   let manifestKeyToRouteName: Record<string, string> = {};
@@ -94,6 +96,7 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
 
         return {
           appType: isDev ? 'custom' : undefined,
+          publicDir: false, // we handle this ourselves
           resolve: {
             dedupe: ['react', 'react-dom'],
           },
@@ -101,30 +104,41 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
             'IS_DEV': isDev,
             'globalThis.IS_DEV': isDev,
           },
+          experimental: {
+            // Rolldown bakes asset URLs (dynamic imports, CSS preloads) into chunks
+            // using `base + outputFilename`. We want files at `client/...` on disk but
+            // served under `${CLIENT_BUNDLE_URL_PREFIX}/...`. This hook rewrites every
+            // such URL through `clientAssetPathToUrl`, decoupling FS from URL.
+            renderBuiltUrl(filename, { ssr }) {
+              if (ssr) return; // server bundle is not loaded over HTTP
+              return clientAssetPathToUrl(filename);
+            },
+          },
           environments: {
             client: {
               define: {
                 'IS_SERVER': false,
                 'globalThis.IS_SERVER': false,
                 ...( isDev ? {} : { '__BUILD_ID__': new Date().getTime(), } ),
+                // ^unique ID for the manifest url. new cache key on each build
+                // TODO: content hash the manifest contents?
               },
               build: {
                 manifest: true,
-                emptyOutDir: true,
                 rolldownOptions: {
                   input: CLIENT_ENTRY_VIRTUAL_ID,
                   output: {
                     format: 'es' as const,
-                    entryFileNames: `${BUNDLES_DIR}/[name]-[hash].js`,
-                    chunkFileNames: `${BUNDLES_DIR}/[name]-[hash].js`,
-                    assetFileNames: `${BUNDLES_DIR}/[name]-[hash][extname]`,
+                    entryFileNames: 'entry-[hash].js',
+                    chunkFileNames: 'chunks/[name]-[hash].js',
+                    assetFileNames: 'assets/[name]-[hash][extname]',
                   },
                 },
               },
             },
             ssr: {
               define: {
-                IS_SERVER: true,
+                'IS_SERVER': true,
                 'globalThis.IS_SERVER': true,
               },
               resolve: {
@@ -132,13 +146,13 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
               },
               build: {
                 manifest: false,
-                emptyOutDir: false,
                 rolldownOptions: {
                   input: SERVER_ENTRY_VIRTUAL_ID,
                   output: {
                     format: 'es' as const,
-                    entryFileNames: SERVER_ENTRY_PATH,
-                    chunkFileNames: `${SERVER_BUNDLES_DIR}/chunks/[name]-[hash].js`,
+                    entryFileNames: SERVER_ENTRY_FILENAME, // hardcoded so 'start' can find it
+                    chunkFileNames: 'chunks/[name]-[hash].js', // in case there's bundle splitting server-side
+                    assetFileNames: 'assets/[name]-[hash][extname]', // in case there's server-side assets?
                   },
                 },
               },
@@ -148,13 +162,40 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
         };
       },
 
-      async configResolved(config) {
+      // all build output goes in <outDir>/.
+      // client and server artifacts each get their own subdir.
+      // this is achieved by specifying a separate per-env outDir, which
+      // we set here.
+      // this means they must share a common parent dir, which we enforce
+      // in configResolved.
+      configEnvironment(name, envConfig) {
+        if (name !== 'client' && name !== 'ssr') return;
+        const subdir = name === 'client' ? CLIENT_BUNDLE_DIR : SERVER_BUNDLE_DIR;
+        const parent = envConfig.build?.outDir ?? DEFAULT_OUTDIR;
+        return { build: { outDir: path.join(parent, subdir) } };
+      },
+
+      configResolved(config) {
         if (config.base !== '/') {
           throw new Error(`[verso] base !== '/' is not supported (got ${JSON.stringify(config.base)}). Verso assumes a root deployment.`);
         }
         resolvedRootDir = config.root; // the user might have set a custom root dir
-        resolvedOutDir = path.resolve(config.root, config.build.outDir);
         entrypointGenerator = getEntrypointGenerator(resolvedRootDir, versoConfig, config.command === 'build');
+
+        // enforce that the client and ssr env outDirs are siblings.
+        // we need them to share a parent dir so we can colocate them with
+        // the copy of the staticDir in build mode
+        const clientOutDir = config.environments.client!.build.outDir;
+        const ssrOutDir = config.environments.ssr!.build.outDir;
+        const clientParent = path.dirname(clientOutDir);
+        const ssrParent = path.dirname(ssrOutDir);
+        if (clientParent !== ssrParent) {
+          throw new Error(
+            `[verso] client and ssr build.outDir must share a parent directory. ` +
+              `Got:\n  client: ${clientOutDir}\n  ssr:    ${ssrOutDir}`
+          );
+        }
+        resolvedSharedOutDir = clientParent;
       },
 
       async buildStart() {
@@ -185,11 +226,13 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
         }
       },
 
+      /**
+       * Write the verso manifest using the vite manifest
+       */
       async writeBundle(_options, bundle) {
-        // Only emit manifest during client build
         if (this.environment.name !== 'client') return;
 
-        // Parse Vite's built-in manifest (has transitive CSS + import chains)
+        // parse Vite's built-in manifest (has transitive CSS + import chains)
         const viteManifestAsset = bundle['.vite/manifest.json'];
         if (!viteManifestAsset || viteManifestAsset.type !== 'asset') {
           throw new Error('[verso] Vite manifest not found; ensure build.manifest is enabled');
@@ -200,17 +243,17 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
             : new TextDecoder().decode(viteManifestAsset.source)
         );
 
-        // Find the entry and resolve its transitive imports (deps first, entry last)
+        // find the entry and resolve its transitive imports (deps first, entry last)
         let entryKey: string | undefined;
         for (const [key, entry] of Object.entries(viteManifest)) {
           if (entry.isEntry) { entryKey = key; break; }
         }
-        if (!entryKey) throw new Error('[verso] Entry chunk not found in Vite manifest');
+        if (!entryKey) throw new Error('[verso] entry chunk not found in Vite manifest');
         const entryScripts = resolveImportFiles(entryKey, viteManifest);
         const entryScriptSet = new Set(entryScripts);
         const entryCss = viteManifest[entryKey]!.css ?? [];
 
-        // Match dynamic entries to routes via manifest keys (root-relative, forward-slash)
+        // match dynamic entries to routes via manifest keys (root-relative, forward-slash)
         const routeManifestKeys: Record<string, string> = {};
         for (const [key, entry] of Object.entries(viteManifest)) {
           if (!entry.isDynamicEntry) continue;
@@ -220,7 +263,6 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
           }
         }
 
-        // Build verso manifest from Vite's
         const manifest: BundleManifest = {};
         for (const routeName of Object.keys(versoConfig.routes)) {
           const routeKey = routeManifestKeys[routeName];
@@ -235,13 +277,35 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
           const routeCss = routeEntry?.css ?? [];
           const stylesheets = [...new Set([...entryCss, ...routeCss])];
 
-          manifest[routeName] = { scripts: entryScripts, preloads, stylesheets };
+          manifest[routeName] = {
+            scripts: entryScripts.map(clientAssetPathToUrl),
+            preloads: preloads.map(clientAssetPathToUrl),
+            stylesheets: stylesheets.map(clientAssetPathToUrl),
+          };
         }
 
-        // Write manifest to disk
         const manifestJson = JSON.stringify(manifest, null, 2);
-        const manifestPath = path.join(resolvedOutDir!, MANIFEST_PATH);
+        const manifestPath = path.join(this.environment.config.build.outDir, MANIFEST_FILENAME);
         await writeFile(manifestPath, `export default ${manifestJson}`);
+        console.log("[verso] writing client manifest", manifestPath);
+      },
+
+      /**
+       * Copy static content into <outDir>/static
+       */
+      async closeBundle(error) {
+        if (error) return;
+        if (this.environment.name !== 'client') return;
+        const { staticDir } = fillServerSettings(versoConfig.server);
+        if (staticDir) {
+          const src = path.resolve(resolvedRootDir!, staticDir);
+          const dest = path.resolve(resolvedSharedOutDir!, BUILT_STATIC_DIRNAME);
+          if (existsSync(src)) {
+            // TODO: maybe just clean up all of resolvedSharedOutDir before writing bundles?
+            rmSync(dest, { recursive: true, force: true });
+            cpSync(src, dest, { recursive: true });
+          }
+        }
       },
     },
 
@@ -294,35 +358,44 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
           if (!resolvedPath) return null;
           return await importWithVite<RouteHandler<any, any, any>>(vite, resolvedPath);
         };
-        const navigator = createResolver(routes, getRouteHandler, globalMiddleware);
+        const resolver = createResolver(routes, getRouteHandler, globalMiddleware);
 
-        const handleRequest = makeHandleRequest(navigator, serverSettings);
+        const serveClientStylesheets: RequestHandler = async (ctx) => {
+          // Dev-only endpoint: return the CSS stylesheet list for a route, so the
+          // client can transition stylesheets during programmatic navigation the
+          // same way it does in prod (from the bundle manifest).
+          if (ctx.url.pathname === DEV_ROUTE_CSS_PATH) {
+            const routeName = ctx.url.searchParams.get('route');
+            if (!routeName || !routes[routeName]) {
+              return new Response(null, { status: 404 });
+            }
+            const handlerPath = routeNameToHandlerPath[routeName]!;
+            const stylesheets = await collectCss(vite, handlerPath);
+            return new Response(JSON.stringify({ stylesheets }), {
+              headers: {
+                'Content-Type': 'application/json'
+              },
+            });
+          }
+        };
+
+        // in dev mode we serve static content directly from the staticDir the user specified in verso config
+        const { staticDir } = serverSettings;
+        const resolvedStaticDir = staticDir === null ? null : path.resolve(resolvedRootDir!, staticDir);
+
+        const handleRequest = makeHandleRequest({
+          resolver,
+          serveInternalAssets: serveClientStylesheets,
+          resolvedStaticDir,
+          settings: serverSettings,
+        });
 
         return () => {
           vite.middlewares.use(async (req, res) => {
             try {
-              const url = toURL(req);
-
-              // Dev-only endpoint: return the CSS stylesheet list for a route, so the
-              // client can transition stylesheets during programmatic navigation the
-              // same way it does in prod (from the bundle manifest).
-              if (url.pathname === DEV_ROUTE_CSS_PATH) {
-                const routeName = url.searchParams.get('route');
-                if (!routeName || !routes[routeName]) {
-                  res.statusCode = 404;
-                  res.end();
-                  return;
-                }
-                const handlerPath = routeNameToHandlerPath[routeName]!;
-                const stylesheets = await collectCss(vite, handlerPath);
-                res.setHeader('Content-Type', 'application/json');
-                res.end(JSON.stringify({ stylesheets }));
-                return;
-              }
-
-              const request = toWebRequest(req, res, url);
+              const request = toWebRequest(req, res);
               const response = await handleRequest(request);
-              await sendWebResponse(res, response);
+              await sendWebResponse(req, res, response);
             } catch (e) {
               if (res.destroyed || res.writableEnded) {
                 return;
@@ -330,7 +403,7 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
               console.error('[verso]', e);
               res.statusCode = 500;
               res.setHeader('Content-Type', 'text/html; charset=utf-8');
-              res.end(html500);
+              res.end('Internal Server Error');
             }
           });
         };

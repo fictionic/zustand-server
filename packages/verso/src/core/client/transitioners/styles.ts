@@ -151,7 +151,7 @@ export class StyleTransitioner {
     if (globalThis.IS_DEV) {
       try {
         const res = await fetch(`${DEV_ROUTE_CSS_PATH}?route=${encodeURIComponent(routeName)}`);
-        if (!res.ok) return [];
+        if (!res.ok) throw new Error(`fetch error: ${res.statusText}`);
         const body = await res.json() as { stylesheets: Stylesheet[] };
         return body.stylesheets;
       } catch (e) {

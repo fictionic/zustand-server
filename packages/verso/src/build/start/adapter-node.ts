@@ -1,30 +1,32 @@
 import type {RuntimeAdapter} from "./adapter";
 import http from 'node:http';
 import path from 'node:path';
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import type { BundleManifest } from '../bundle';
-import { BUNDLES_DIR, MANIFEST_PATH, SERVER_ENTRY_PATH } from '../constants';
+import { DEFAULT_OUTDIR, MANIFEST_PATH, SERVER_ENTRY_PATH } from '../constants';
 import {pathToFileURL} from "node:url";
-import { toURL, toWebRequest, sendWebResponse } from '../node-utils';
+import { toWebRequest } from '../../vendor/hattip/node-request';
+import { sendWebResponse } from '../../vendor/hattip/node-response';
 
-export function getAdapter(outDir = 'dist'): RuntimeAdapter {
+export function getAdapter(outDir = DEFAULT_OUTDIR): RuntimeAdapter {
   return {
     loadAssets: async () => {
       const manifestPath = path.resolve(outDir, MANIFEST_PATH);
       const manifest: BundleManifest = (await import(manifestPath)).default;
 
-      const bundlesDir = path.resolve(outDir, BUNDLES_DIR);
-      const files = await readdir(bundlesDir);
-      const bundleContents: Record<string, string> = {};
-      await Promise.all(
-        files.map(async (file) => {
-          const bundlePath = `${BUNDLES_DIR}/${file}`;
-          bundleContents[bundlePath] = await readFile(path.resolve(outDir, bundlePath), 'utf-8');
-        })
-      );
       return {
         manifest,
-        bundleContents,
+        loadBundle: async (bundleBasename) => {
+          try {
+            return await readFile(path.resolve(outDir, bundleBasename));
+          } catch (err) {
+            if ((err as ErrnoException).code === 'ENOENT') {
+              return null
+            }
+            throw err;
+          }
+        },
+        runDir: path.resolve(outDir),
       };
     },
 
@@ -33,15 +35,14 @@ export function getAdapter(outDir = 'dist'): RuntimeAdapter {
       return await import(serverEntryPath);
     },
 
-    serve: async (handler, opts) => {
+    serve: async (handleRequest, opts) => {
       const { port, host, signal } = opts;
 
       const server = http.createServer(async (nodeReq, nodeRes) => {
         try {
-          const url = toURL(nodeReq);
-          const request = toWebRequest(nodeReq, nodeRes, url);
-          const response = await handler(request);
-          await sendWebResponse(nodeRes, response);
+          const request = toWebRequest(nodeReq, nodeRes);
+          const response = await handleRequest(request);
+          await sendWebResponse(nodeReq, nodeRes, response);
         } catch (e) {
           if (nodeRes.destroyed || nodeRes.writableEnded) {
             return;

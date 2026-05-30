@@ -1,9 +1,9 @@
 import type {ReactElement} from 'react';
 import {TOKEN, tokenizeElements, type PageElementToken} from '../common/tokenizeElements';
 import {scheduleRootRender} from './components/Root';
-import {getAbortPromise} from './abort';
 import type {MaybePromise} from './util/types';
 import type {RenderableHTMLAttributes} from './components/attrs';
+import {getAbortPromise} from './abort';
 
 const TOKEN_STATUS = {
   PENDING: 'PENDING',
