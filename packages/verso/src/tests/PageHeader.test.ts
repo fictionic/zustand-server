@@ -5,7 +5,6 @@ import {
   getScriptAttrs,
   getMetaTagAttrs,
   getLinkTagAttrs,
-  getBaseTagAttrs,
   setNodeAttrs,
 } from '../core/common/handler/PageHeader.js';
 import {
@@ -156,33 +155,6 @@ describe('getLinkTagAttrs', () => {
   test('always includes the sentinel attribute', () => {
     const attrs = getLinkTagAttrs({ rel: 'icon', href: '/favicon.ico' });
     expect(attrs).toHaveProperty(PAGE_HEADER_LINK_ELEMENT_ATTR, '');
-  });
-});
-
-describe('getBaseTagAttrs', () => {
-  test('href only', () => {
-    const attrs = getBaseTagAttrs({ href: '/app/' });
-    expect(attrs).toEqual({ href: '/app/' });
-  });
-
-  test('target only', () => {
-    const attrs = getBaseTagAttrs({ target: '_blank' });
-    expect(attrs).toEqual({ target: '_blank' });
-  });
-
-  test('href and target', () => {
-    const attrs = getBaseTagAttrs({ href: '/app/', target: '_blank' });
-    expect(attrs).toEqual({ href: '/app/', target: '_blank' });
-  });
-
-  test('empty base returns empty attrs', () => {
-    const attrs = getBaseTagAttrs({});
-    expect(attrs).toEqual({});
-  });
-
-  test('explicit undefined fields are omitted', () => {
-    const attrs = getBaseTagAttrs({ href: undefined, target: undefined });
-    expect(attrs).toEqual({});
   });
 });
 

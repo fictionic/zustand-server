@@ -228,20 +228,6 @@ export class ClientController {
       // =header=
       document.title = page.getTitle() ?? ''; // no way to unset title; technically sort of non-isomorphic
 
-      // update base tag
-      const base = page.getBase();
-      let baseNode = document.head.querySelector('base');
-      if (base === null) {
-        baseNode?.parentNode?.removeChild(baseNode);
-      } else {
-        if (!baseNode) {
-          baseNode = document.createElement('base');
-          document.head.prepend(baseNode);
-        }
-        if (base.href) baseNode.href = base.href;
-        if (base.target) baseNode.target = base.target;
-      }
-
       // update links. can just blindly throw away old ones and add new ones
       document.querySelectorAll(`[${PAGE_HEADER_LINK_ELEMENT_ATTR}]`).forEach(node => {
         node.parentNode?.removeChild(node);

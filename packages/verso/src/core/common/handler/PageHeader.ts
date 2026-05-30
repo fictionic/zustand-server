@@ -47,18 +47,6 @@ export function getScriptAttrs(script: Script): Attrs {
   return attrs;
 }
 
-export type BaseTag = {
-  href?: string;
-  target?: string;
-};
-
-export function getBaseTagAttrs(base: BaseTag): Attrs {
-  const attrs: Attrs = {};
-  if (base.href) attrs.href = base.href;
-  if (base.target) attrs.target = base.target;
-  return attrs;
-}
-
 export type LinkTag = {
   rel: string;
   href: string;

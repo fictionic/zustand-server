@@ -1,20 +1,14 @@
-import {getBaseTagAttrs, getLinkTagAttrs, getMetaTagAttrs, getStyleAttrs} from "../common/handler/Page";
-import type {StandardizedPage, Stylesheet, LinkTag, MetaTag, BaseTag, Attrs} from "../common/handler/Page";
+import {getLinkTagAttrs, getMetaTagAttrs, getStyleAttrs} from "../common/handler/Page";
+import type {StandardizedPage, Stylesheet, LinkTag, MetaTag, Attrs} from "../common/handler/Page";
 
 export async function writeHeader(page: StandardizedPage, write: (html: string) => void) {
   write('<meta charset="utf-8">'); // doesn't affect the browser but nice to have
-  write(renderBaseTag(page.getBase()));
   write(renderMetaTags(page.getMetaTags()));
   write(renderTitle(page.getTitle()));
   write(renderLinkTags(await page.getSystemLinkTags()));
   write(renderLinkTags(page.getLinkTags()));
   write(renderStylesheets(await page.getSystemStylesheets()));
   write(renderStylesheets(page.getStylesheets()));
-}
-
-function renderBaseTag(base: BaseTag | null): string {
-  if (!base) return '';
-  return renderOpenTag('base', getBaseTagAttrs(base));
 }
 
 function renderMetaTags(tags: MetaTag[]): string {

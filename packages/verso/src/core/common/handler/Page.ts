@@ -1,7 +1,6 @@
 import type {ReactElement} from "react";
 import type {MaybePromise} from "../util/types";
 import type {
-  BaseTag,
   LinkTag,
   MetaTag,
   Script,
@@ -23,7 +22,6 @@ declare module './RouteHandler' {
 
 export interface PageOptionalMethods {
   getTitle(): string | null;
-  getBase(): BaseTag | null;
   getSystemStylesheets(): MaybePromise<Stylesheet[]>;
   getStylesheets(): Stylesheet[];
   getSystemScripts(): MaybePromise<Script[]>;
@@ -51,7 +49,6 @@ const PAGE_REQUIRED_METHOD_NAMES: (keyof PageRequiredMethods)[] = ['getElements'
 
 const PAGE_OPTIONAL_METHOD_DEFAULTS: PageOptionalMethods = {
   getTitle: () => null,
-  getBase: () => null,
   getSystemStylesheets: () => [],
   getStylesheets: () => [],
   getSystemScripts: () => [],
