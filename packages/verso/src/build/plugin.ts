@@ -18,7 +18,7 @@ import type {MakeHandleRequest} from '../core/server/handleRequest';
 import type { MiddlewareDefinition } from '../core/common/handler/Middleware';
 import {createResolver} from '../core/common/resolver';
 import type {RequestHandler} from '../vendor/hattip/compose';
-import {cpSync, existsSync, mkdirSync, rmSync} from 'node:fs';
+import {cpSync, existsSync, rmSync} from 'node:fs';
 
 const VERSO_CONFIG_FILE_NAME = 'verso.config.ts';
 
@@ -119,9 +119,6 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
               define: {
                 'IS_SERVER': false,
                 'globalThis.IS_SERVER': false,
-                ...( isDev ? {} : { '__BUILD_ID__': new Date().getTime(), } ),
-                // ^unique ID for the manifest url. new cache key on each build
-                // TODO: content hash the manifest contents?
               },
               build: {
                 manifest: true,
@@ -151,8 +148,8 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
                   output: {
                     format: 'es' as const,
                     entryFileNames: SERVER_ENTRY_FILENAME, // hardcoded so 'start' can find it
-                    chunkFileNames: 'chunks/[name]-[hash].js', // in case there's bundle splitting server-side
-                    assetFileNames: 'assets/[name]-[hash][extname]', // in case there's server-side assets?
+                    chunkFileNames: 'chunks/[name].js', // in case there's bundle splitting server-side
+                    assetFileNames: 'assets/[name][extname]', // in case there's server-side assets?
                   },
                 },
               },
@@ -180,7 +177,7 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
           throw new Error(`[verso] base !== '/' is not supported (got ${JSON.stringify(config.base)}). Verso assumes a root deployment.`);
         }
         resolvedRootDir = config.root; // the user might have set a custom root dir
-        entrypointGenerator = getEntrypointGenerator(resolvedRootDir, versoConfig, config.command === 'build');
+        entrypointGenerator = getEntrypointGenerator(resolvedRootDir, versoConfig);
 
         // enforce that the client and ssr env outDirs are siblings.
         // we need them to share a parent dir so we can colocate them with
@@ -294,7 +291,7 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
         }
 
         const manifestJson = JSON.stringify(manifest, null, 2);
-        const manifestPath = path.join(this.environment.config.build.outDir, MANIFEST_FILENAME);
+        const manifestPath = path.join(resolvedSharedOutDir!, MANIFEST_FILENAME);
         await writeFile(manifestPath, `export default ${manifestJson}`);
         console.log("[verso] writing client manifest", manifestPath);
       },
@@ -329,23 +326,17 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
           (id) => vite.environments.ssr.pluginContainer.resolveId(id),
         );
 
-        const serverSettings = fillServerSettings(versoConfig.server);
-
-        const { routes } = versoConfig;
-
-        const entryUrl = `/@id/__x00__${CLIENT_ENTRY_VIRTUAL_ID}`;
-
-        const entryScript = makeAsyncScript(entryUrl);
-
         const viteDevScripts: Script[] = [
           { text: react.preambleCode.replace('__BASE__', '/'), type: 'module' }, // vite react hmr preamble (inline)
           { src: '/@vite/client', type: 'module' }, // vite dev client
         ];
 
+        const entryUrl = `/@id/__x00__${CLIENT_ENTRY_VIRTUAL_ID}`;
+        const entryScript = makeAsyncScript(entryUrl);
+
         const bundleLoader = createViteBundleLoader({
           getGlobalScripts: () => [...viteDevScripts, entryScript],
-          getGlobalModulePreloadUrls: () => [],
-          getGlobalStylesheets: () => [],
+          getGlobalStylesheets: () => [], // all styles are loaded through the per-route endpoint in dev
           getRouteScriptUrls: () => [], // no bundles in dev
           getRouteStylesheets: async (routeName) => {
             const handlerPath = routeNameToHandlerPath[routeName]!;
@@ -366,6 +357,9 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
           if (!resolvedPath) return null;
           return await importWithVite<RouteHandler<any, any, any>>(vite, resolvedPath);
         };
+
+        const { routes } = versoConfig;
+
         const resolver = createResolver(routes, getRouteHandler, globalMiddleware);
 
         const serveClientStylesheets: RequestHandler = async (ctx) => {
@@ -390,6 +384,7 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
         };
 
         // in dev mode we serve static content directly from the staticDir the user specified in verso config
+        const serverSettings = fillServerSettings(versoConfig.server);
         const { staticDir } = serverSettings;
         const resolvedStaticDir = staticDir === null ? null : path.resolve(resolvedRootDir!, staticDir);
 
@@ -397,6 +392,7 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
 
         const handleRequest = makeHandleRequest({
           resolver,
+          manifest: null,
           serveInternalAssets: serveClientStylesheets,
           resolvedStaticDir,
           settings: serverSettings,

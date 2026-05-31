@@ -6,7 +6,7 @@ import {createViteBundleLoader, makeAsyncScript} from "./ViteBundleLoader";
 import type {RoutesMap, ServerSettings} from './config';
 import type {RouteHandlerDefinition} from "../core/common/handler/RouteHandler";
 import {createResolver, type GetRouteHandler} from "../core/common/resolver";
-import {BUILT_STATIC_DIRNAME, CLIENT_BUNDLE_URL_PREFIX, clientAssetUrlToPath, MANIFEST_URL} from "./constants";
+import {BUILT_STATIC_DIRNAME, CLIENT_BUNDLE_URL_PREFIX, clientAssetUrlToPath} from "./constants";
 import {type HandleRequest, makeHandleRequest} from "../core/server/handleRequest";
 import type {RequestHandler} from "../vendor/hattip/compose";
 
@@ -39,9 +39,6 @@ export async function buildServer(
 
   const bundleLoader = createViteBundleLoader({
     getGlobalScripts: () => globalScripts,
-    getGlobalModulePreloadUrls: () => [MANIFEST_URL],
-    // ^global preload for the manifest itself, for client transition css
-    // (so the dynamic import() from bootstrap() will be instant)
     getGlobalStylesheets: () => globalStylesheets,
     getRouteScriptUrls: (routeName) => routeScriptUrls[routeName] ?? [],
     getRouteStylesheets: (routeName) => routeStylesheets[routeName] ?? [],
@@ -77,6 +74,7 @@ export async function buildServer(
 
   const handleRequest = makeHandleRequest({
     resolver,
+    manifest,
     serveInternalAssets: serveBundles,
     resolvedStaticDir,
     settings: serverSettings,

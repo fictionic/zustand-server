@@ -7,14 +7,29 @@ import {getServerStash} from "./stash";
 import type {HandleRequest} from "./handleRequest";
 import {initAbort} from "../common/abort";
 import type {RequestHandler} from "../../vendor/hattip/compose";
+import type {ClientManifest} from "../../build/bundle";
 
-export function runVerso(resolver: Resolver, loopback: HandleRequest, settings: ServerSettings): RequestHandler {
+export type RunVerso = (opts: {
+  resolver: Resolver,
+  manifest: ClientManifest | null, // null in dev
+  loopback: HandleRequest,
+  settings: ServerSettings
+}) => RequestHandler;
+
+export const runVerso: RunVerso = ({
+  resolver,
+  manifest,
+  loopback,
+  settings,
+}) => {
   return async (ctx) => {
     const req = ctx.request;
 
     initAbort(req.signal);
 
     getServerStash().request = req;
+    getServerStash().manifest = manifest;
+    // ^it'd be awkward to wire this through to handlePage
 
     Fetch.serverInit(req, loopback, settings);
 

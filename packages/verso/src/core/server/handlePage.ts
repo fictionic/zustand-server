@@ -1,5 +1,6 @@
 import {Fetch} from "../common/fetch/Fetch";
 import {
+  CLIENT_MANIFEST_KEY,
   FETCH_CACHE_KEY,
   FN_ABORT_HYDRATION,
   FN_HYDRATE_ROOTS_UP_TO,
@@ -22,6 +23,7 @@ import {PageElementProcessor} from "../common/PageElementProcessor";
 import {renderToString} from "react-dom/server";
 import {marshallBody} from "../common/util/body";
 import {didAbort} from "../common/abort";
+import type {ClientManifest} from "../../build/bundle";
 
 export function handlePage(page: StandardizedPage): HandlerResponse {
   const { readable, writable } = new TransformStream<Uint8Array>();
@@ -43,8 +45,9 @@ export function handlePage(page: StandardizedPage): HandlerResponse {
 
     writeablePipe.init(); // send down the pipe init script
 
-    // this is where the fun begins...
     write(await renderBodyOpen());
+
+    // this is where the fun begins...
 
     let haveBootstrapped = false;
 
@@ -132,6 +135,10 @@ export function handlePage(page: StandardizedPage): HandlerResponse {
       url: request.url,
       body: await marshallBody(request.clone()),
     });
+    const manifest = getServerStash().manifest;
+    if (manifest) {
+      writeablePipe.writeValue(CLIENT_MANIFEST_KEY, manifest);
+    }
     for (const script of await page.getScripts()) {
       write(renderScript(script));
     }

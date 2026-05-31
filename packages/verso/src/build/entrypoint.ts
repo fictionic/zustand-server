@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import {fillClientSettings, fillServerSettings, type ServerSettings, type VersoConfig} from './config';
 import type {BuildServer} from './buildServer';
 import type {ServerAssets} from './bundle';
-import {MANIFEST_URL, VERSO_ENTRY} from './constants';
+import {VERSO_ENTRY} from './constants';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -18,7 +18,6 @@ export interface EntrypointGenerator {
 export function getEntrypointGenerator(
   handlerBasePath: string,
   versoConfig: VersoConfig,
-  writeManifest: boolean,
 ): EntrypointGenerator {
 
   const { routes, middleware, server: _serverSettings, client: _clientSettings } = versoConfig;
@@ -43,10 +42,6 @@ export function getEntrypointGenerator(
         importNames: middlewareImportNames,
       } = generateStaticImports(middlewarePaths, 'middleware');
 
-      const manifest = writeManifest ?
-        `await import(/* @vite-ignore */ ${quote(MANIFEST_URL)} + '?v=' + __BUILD_ID__).then(m => m.default)` : // we've preloaded this so it should be instant
-        "null"; // not needed in dev mode -- vite handles css on client transitions
-
       return `
 import { bootstrap } from ${quote(BOOTSTRAP_PATH)};
 
@@ -61,9 +56,7 @@ const pageLoaders = {
 ${middlewareImportStatements.join('\n')}
 const middleware = [${middlewareImportNames.join(', ')}];
 
-const manifest = ${manifest};
-
-bootstrap(routes, pageLoaders, middleware, manifest, clientSettings);
+bootstrap(routes, pageLoaders, middleware, clientSettings);
 `.trim();
     },
 

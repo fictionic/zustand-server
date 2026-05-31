@@ -14,12 +14,9 @@ export const CLIENT_BUNDLE_DIR = 'client';
 // ...but they're served from /__verso/bundles
 export const CLIENT_BUNDLE_URL_PREFIX = VERSO_INTERNAL_URL_PREFIX + '/bundles/';
 
-// the manifest is written during the client build and fetched
-// from the client. the server also of course needs it, to know
-// how to server assets to the client.
+// the manifest is written during the client build and streamed
+// to the client during pageload.
 export const MANIFEST_FILENAME = 'manifest.js';
-export const MANIFEST_PATH = CLIENT_BUNDLE_DIR + '/' + MANIFEST_FILENAME;
-export const MANIFEST_URL = clientAssetPathToUrl(MANIFEST_FILENAME);
 
 // used during client build
 export function clientAssetPathToUrl(assetPath: string) {

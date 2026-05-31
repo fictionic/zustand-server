@@ -7,9 +7,11 @@ import {runVerso} from "./runVerso";
 import {handleFailsafeTimeouts} from "./failsafe";
 import {compose, type RequestHandler} from "../../vendor/hattip/compose";
 import type {AdapterRequestContext} from "../../vendor/hattip/core";
+import type {ClientManifest} from "../../build/bundle";
 
 export type MakeHandleRequest = (opts: {
   resolver: Resolver;
+  manifest: ClientManifest | null;
   serveInternalAssets: RequestHandler;
   resolvedStaticDir: string | null;
   settings: ServerSettings;
@@ -19,6 +21,7 @@ export type HandleRequest = (request: Request) => Promise<Response>;
 
 export const makeHandleRequest: MakeHandleRequest = ({
   resolver,
+  manifest,
   serveInternalAssets,
   resolvedStaticDir,
   settings,
@@ -36,7 +39,7 @@ export const makeHandleRequest: MakeHandleRequest = ({
     resolvePublicRequest(settings),
     serveInternalAssets,
     serveStaticContent(resolvedStaticDir),
-    runVerso(resolver, loopback, settings),
+    runVerso({resolver, manifest, loopback, settings}),
   );
 
   handleRequest = (req: Request) => runWithServerRLS(async () => {

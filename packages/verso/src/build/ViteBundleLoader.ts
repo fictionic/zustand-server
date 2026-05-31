@@ -8,10 +8,6 @@ export interface ViteBundleLoaderConfig {
    */
   getGlobalScripts: () => Script[];
   /**
-   * Any JS modules to preload (in practice this is just the client manifest in build mode)
-   */
-  getGlobalModulePreloadUrls: () => string[];
-  /**
    * Any CSS needed in every route
    */
   getGlobalStylesheets: () => Stylesheet[];
@@ -39,9 +35,7 @@ export function createViteBundleLoader(config: ViteBundleLoaderConfig): Middlewa
         const routeName = getRoute().name;
         const routePreloads: LinkTag[] = config.getRouteScriptUrls(routeName)
           .map(makeModulePreload);
-        const globalPreloads: LinkTag[] = (config.getGlobalModulePreloadUrls() ?? [])
-          .map(makeModulePreload);
-        return [...globalPreloads, ...routePreloads, ...await next()];
+        return [...routePreloads, ...await next()];
       },
       getScripts: async (next) => {
         // routes don't get their scripts sent down as script tags on pageload.
