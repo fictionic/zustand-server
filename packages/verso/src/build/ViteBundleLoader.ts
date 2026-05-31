@@ -3,11 +3,27 @@ import { defineMiddleware, type MiddlewareDefinition } from "../core/common/hand
 import type {MaybePromise} from "../core/common/util/types";
 
 export interface ViteBundleLoaderConfig {
-  getRouteStylesheets: (routeName: string) => MaybePromise<Stylesheet[]>;
-  getRouteModulePreloadUrls: (routeName: string) => string[];
+  /**
+   * JS chunks needed for every route (always inclues the shared client entrypoint)
+   */
+  getGlobalScripts: () => Script[];
+  /**
+   * Any JS modules to preload (in practice this is just the client manifest in build mode)
+   */
+  getGlobalModulePreloadUrls: () => string[];
+  /**
+   * Any CSS needed in every route
+   */
+  getGlobalStylesheets: () => Stylesheet[];
+  /**
+   * JS chunk URLs per route. Will be modulepreloaded during server render,
+   * as it's the first thing the client entrypoint imports.
+   */
   getRouteScriptUrls: (routeName: string) => string[];
-  globalModulePreloadUrls?: string[];
-  globalScripts?: Script[];
+  /**
+   * CSS per route.
+   */
+  getRouteStylesheets: (routeName: string) => MaybePromise<Stylesheet[]>;
 }
 
 export function createViteBundleLoader(config: ViteBundleLoaderConfig): MiddlewareDefinition<'page'> {
@@ -15,27 +31,32 @@ export function createViteBundleLoader(config: ViteBundleLoaderConfig): Middlewa
     return {
       getStylesheets: async (next) => {
         const routeName = getRoute().name;
-        const stylesheets: Stylesheet[] = await config.getRouteStylesheets(routeName);
-        return [...stylesheets, ...(await next())];
+        const globalStylesheets: Stylesheet[] = config.getGlobalStylesheets();
+        const routeStylesheets: Stylesheet[] = await config.getRouteStylesheets(routeName);
+        return [...globalStylesheets, ...routeStylesheets, ...(await next())];
       },
       getLinkTags: async (next) => {
         const routeName = getRoute().name;
-        const routePreloads: LinkTag[] = config.getRouteModulePreloadUrls(routeName)
+        const routePreloads: LinkTag[] = config.getRouteScriptUrls(routeName)
           .map(makeModulePreload);
-        const globalPreloads: LinkTag[] = (config.globalModulePreloadUrls ?? [])
+        const globalPreloads: LinkTag[] = (config.getGlobalModulePreloadUrls() ?? [])
           .map(makeModulePreload);
         return [...globalPreloads, ...routePreloads, ...await next()];
       },
       getScripts: async (next) => {
-        const routeName = getRoute().name;
-        const routeScripts: Script[] = config.getRouteScriptUrls(routeName)
-          .map(src => ({ src, type: 'module', async: true }));
-          // ^async here is important. allows scripts to execute before the document has been parsed.
-        const globalScripts: Script[] = config.globalScripts ?? [];
-        return [...globalScripts, ...routeScripts, ...await next()];
+        // routes don't get their scripts sent down as script tags on pageload.
+        // there's a single entrypoint shared by all routes that does a dynamic import
+        // of the matched route's handler. we preload those chunks.
+        const globalScripts: Script[] = config.getGlobalScripts()
+        return [...globalScripts, ...await next()];
       },
     };
   });
+}
+
+export function makeAsyncScript(src: string): Script {
+  return { src, type: 'module', async: true };
+  // ^async here is important. allows scripts to execute before the document has been parsed.
 }
 
 function makeModulePreload(href: string): LinkTag {

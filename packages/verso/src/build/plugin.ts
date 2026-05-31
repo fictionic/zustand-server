@@ -6,10 +6,10 @@ import { isRunnableDevEnvironment, normalizePath, type ModuleNode, type Plugin, 
 import { fillServerSettings, type RoutesMap, type VersoConfig } from './config';
 import type { RouteHandler } from '../core/common/handler/RouteHandler';
 import type { Script, Stylesheet } from '../core/common/handler/Page';
-import type { BundleManifest } from './bundle';
+import type { ClientManifest } from './bundle';
 import { BUILT_STATIC_DIRNAME, CLIENT_BUNDLE_DIR, clientAssetPathToUrl, DEFAULT_OUTDIR, MANIFEST_FILENAME, SERVER_BUNDLE_DIR, SERVER_ENTRY_FILENAME, VERSO_ENTRY } from './constants';
 import { DEV_ROUTE_CSS_PATH } from '../core/common/constants';
-import { createViteBundleLoader } from './ViteBundleLoader';
+import { createViteBundleLoader, makeAsyncScript } from './ViteBundleLoader';
 import { toWebRequest } from '../vendor/hattip/node-request';
 import { sendWebResponse } from '../vendor/hattip/node-response';
 import { getEntrypointGenerator, type EntrypointGenerator } from './entrypoint';
@@ -227,7 +227,7 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
       },
 
       /**
-       * Write the verso manifest using the vite manifest
+       * Write the Verso client manifest using the Vite manifest
        */
       async writeBundle(_options, bundle) {
         if (this.environment.name !== 'client') return;
@@ -251,7 +251,8 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
         if (!entryKey) throw new Error('[verso] entry chunk not found in Vite manifest');
         const entryScripts = resolveImportFiles(entryKey, viteManifest);
         const entryScriptSet = new Set(entryScripts);
-        const entryCss = viteManifest[entryKey]!.css ?? [];
+        const entryStylesheets = viteManifest[entryKey]!.css ?? [];
+        const entryStylesheetsSet = new Set(entryStylesheets);
 
         // match dynamic entries to routes via manifest keys (root-relative, forward-slash)
         const routeManifestKeys: Record<string, string> = {};
@@ -263,23 +264,31 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
           }
         }
 
-        const manifest: BundleManifest = {};
+        const manifest: ClientManifest = {
+          global: {
+            scripts: entryScripts.map(clientAssetPathToUrl),
+            stylesheets: entryStylesheets.map(clientAssetPathToUrl),
+          },
+          routes: {
+            // we'll fill this in next
+          },
+        };
+
         for (const routeName of Object.keys(versoConfig.routes)) {
           const routeKey = routeManifestKeys[routeName];
           const routeEntry = routeKey ? viteManifest[routeKey] : undefined;
 
-          // Preloads: route chunk + transitive deps, minus entry scripts
-          const preloads = routeKey
+          // scripts: route chunk + transitive deps, minus entry scripts
+          // (these get modulepreloaded in build mode)
+          const scripts = routeKey
             ? resolveImportFiles(routeKey, viteManifest).filter(f => !entryScriptSet.has(f))
             : [];
 
-          // Stylesheets: entry CSS + route CSS, deduped (both already transitive)
-          const routeCss = routeEntry?.css ?? [];
-          const stylesheets = [...new Set([...entryCss, ...routeCss])];
+          // stylesheets: route CSS (already transitive)
+          const stylesheets = (routeEntry?.css ?? []).filter(s => !entryStylesheetsSet.has(s));
 
-          manifest[routeName] = {
-            scripts: entryScripts.map(clientAssetPathToUrl),
-            preloads: preloads.map(clientAssetPathToUrl),
+          manifest.routes[routeName] = {
+            scripts: scripts.map(clientAssetPathToUrl),
             stylesheets: stylesheets.map(clientAssetPathToUrl),
           };
         }
@@ -326,24 +335,22 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
 
         const entryUrl = `/@id/__x00__${CLIENT_ENTRY_VIRTUAL_ID}`;
 
-        const makeHandleRequest = await importWithVite<MakeHandleRequest>(vite, SERVER_PATH);
+        const entryScript = makeAsyncScript(entryUrl);
 
-        const routeScripts: Record<string, string[]> = {};
-        for (const routeName of Object.keys(routes)) {
-          routeScripts[routeName] = [entryUrl];
-        }
         const viteDevScripts: Script[] = [
           { text: react.preambleCode.replace('__BASE__', '/'), type: 'module' }, // vite react hmr preamble (inline)
           { src: '/@vite/client', type: 'module' }, // vite dev client
         ];
+
         const bundleLoader = createViteBundleLoader({
+          getGlobalScripts: () => [...viteDevScripts, entryScript],
+          getGlobalModulePreloadUrls: () => [],
+          getGlobalStylesheets: () => [],
+          getRouteScriptUrls: () => [], // no bundles in dev
           getRouteStylesheets: async (routeName) => {
             const handlerPath = routeNameToHandlerPath[routeName]!;
             return await collectCss(vite, handlerPath);
           },
-          getRouteModulePreloadUrls: () => [],
-          getRouteScriptUrls: (routeName) => routeScripts[routeName] ?? [],
-          globalScripts: viteDevScripts,
         });
         const systemMiddleware = [bundleLoader];
 
@@ -364,7 +371,9 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
         const serveClientStylesheets: RequestHandler = async (ctx) => {
           // Dev-only endpoint: return the CSS stylesheet list for a route, so the
           // client can transition stylesheets during programmatic navigation the
-          // same way it does in prod (from the bundle manifest).
+          // same way it does in build mode (from the client manifest).
+          // Note that this includes global stylesheets (those used in every route),
+          // unlike in build mode, where those are tracked separately in the manfest.
           if (ctx.url.pathname === DEV_ROUTE_CSS_PATH) {
             const routeName = ctx.url.searchParams.get('route');
             if (!routeName || !routes[routeName]) {
@@ -383,6 +392,8 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
         // in dev mode we serve static content directly from the staticDir the user specified in verso config
         const { staticDir } = serverSettings;
         const resolvedStaticDir = staticDir === null ? null : path.resolve(resolvedRootDir!, staticDir);
+
+        const makeHandleRequest = await importWithVite<MakeHandleRequest>(vite, SERVER_PATH);
 
         const handleRequest = makeHandleRequest({
           resolver,

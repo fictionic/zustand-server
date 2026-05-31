@@ -1,4 +1,4 @@
-import type {BundleManifest} from '../../build/bundle';
+import type {ClientManifest} from '../../build/bundle';
 import type {ClientSettings, RoutesMap} from '../../build/config';
 import type {PageDefinition} from '../common/handler/Page';
 import type {MiddlewareDefinition} from '../common/handler/Middleware';
@@ -13,7 +13,7 @@ export async function bootstrap(
   middleware: MiddlewareDefinition[],
   // The bundle manifest is only available in build mode. In dev, the controller
   // fetches route stylesheets from a dev-only endpoint during client transitions.
-  manifest: BundleManifest | null,
+  manifest: ClientManifest | null,
   clientSettings: ClientSettings,
 ): Promise<void> {
   const getRouteHandler: GetRouteHandler = async (routeName: string) => {

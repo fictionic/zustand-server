@@ -2,7 +2,7 @@ import type {RuntimeAdapter} from "./adapter";
 import http from 'node:http';
 import path from 'node:path';
 import { readFile } from 'node:fs/promises';
-import type { BundleManifest } from '../bundle';
+import type { ClientManifest } from '../bundle';
 import { DEFAULT_OUTDIR, MANIFEST_PATH, SERVER_ENTRY_PATH } from '../constants';
 import {pathToFileURL} from "node:url";
 import { toWebRequest } from '../../vendor/hattip/node-request';
@@ -12,7 +12,7 @@ export function getAdapter(outDir = DEFAULT_OUTDIR): RuntimeAdapter {
   return {
     loadAssets: async () => {
       const manifestPath = path.resolve(outDir, MANIFEST_PATH);
-      const manifest: BundleManifest = (await import(manifestPath)).default;
+      const manifest: ClientManifest = (await import(manifestPath)).default;
 
       return {
         manifest,

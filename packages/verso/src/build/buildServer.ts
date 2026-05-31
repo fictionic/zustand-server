@@ -1,8 +1,8 @@
 import path from 'node:path';
 import type {ServerAssets} from "../build/bundle";
-import type {Stylesheet} from "../core/common/handler/Page";
+import {makeLinkStylesheet, type Script, type Stylesheet} from "../core/common/handler/Page";
 import type {MiddlewareDefinition} from "../core/common/handler/Middleware";
-import {createViteBundleLoader} from "./ViteBundleLoader";
+import {createViteBundleLoader, makeAsyncScript} from "./ViteBundleLoader";
 import type {RoutesMap, ServerSettings} from './config';
 import type {RouteHandlerDefinition} from "../core/common/handler/RouteHandler";
 import {createResolver, type GetRouteHandler} from "../core/common/resolver";
@@ -28,22 +28,23 @@ export async function buildServer(
   const { manifest, loadBundle, runDir } = serverAssets;
 
   // first create the resolver
-  const routeScripts: Record<string, string[]> = {};
+  const globalScripts: Script[] = manifest.global.scripts.map(makeAsyncScript);
+  const globalStylesheets: Stylesheet[] = manifest.global.stylesheets.map(makeLinkStylesheet);
+  const routeScriptUrls: Record<string, string[]> = {};
   const routeStylesheets: Record<string, Stylesheet[]> = {};
-  const routePreloadSources: Record<string, string[]> = {};
-  for (const [routeName, assets] of Object.entries(manifest)) {
-    routeScripts[routeName] = assets.scripts;
-    routeStylesheets[routeName] = assets.stylesheets.map(href => ({ href }));
-    routePreloadSources[routeName] = assets.preloads ?? [];
+  for (const [routeName, assets] of Object.entries(manifest.routes)) {
+    routeScriptUrls[routeName] = assets.scripts ?? [];
+    routeStylesheets[routeName] = assets.stylesheets.map(makeLinkStylesheet);
   }
 
   const bundleLoader = createViteBundleLoader({
-    getRouteScriptUrls: (routeName) => routeScripts[routeName] ?? [],
-    getRouteStylesheets: (routeName) => routeStylesheets[routeName] ?? [],
-    getRouteModulePreloadUrls: (routeName) => routePreloadSources[routeName] ?? [],
-    // global preload for the manifest itself, for client transition css
+    getGlobalScripts: () => globalScripts,
+    getGlobalModulePreloadUrls: () => [MANIFEST_URL],
+    // ^global preload for the manifest itself, for client transition css
     // (so the dynamic import() from bootstrap() will be instant)
-    globalModulePreloadUrls: [MANIFEST_URL],
+    getGlobalStylesheets: () => globalStylesheets,
+    getRouteScriptUrls: (routeName) => routeScriptUrls[routeName] ?? [],
+    getRouteStylesheets: (routeName) => routeStylesheets[routeName] ?? [],
   });
 
   // systemMiddleware has to come first, so bundles are fetched before any userland assets

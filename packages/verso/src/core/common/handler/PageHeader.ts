@@ -26,6 +26,10 @@ export function getStyleAttrs(stylesheet: Stylesheet): Attrs {
   return attrs;
 }
 
+export function makeLinkStylesheet(href: string): Stylesheet {
+  return { href };
+}
+
 export type Script = &
   { type?: string; } &
   ({

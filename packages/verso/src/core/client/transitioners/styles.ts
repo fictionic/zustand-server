@@ -1,17 +1,15 @@
 import {DEV_ROUTE_CSS_PATH, DEV_VITE_STYLE_ID_ATTR, PAGE_HEADER_STYLE_ELEMENT_ATTR} from "../../common/constants";
-import {getStyleAttrs, setNodeAttrs, type Stylesheet} from "../../common/handler/Page";
+import {getStyleAttrs, makeLinkStylesheet, setNodeAttrs, type Stylesheet} from "../../common/handler/Page";
 import {normalizeUrlOrigin} from "../url";
-import type {BundleManifest} from "../../../build/bundle";
+import type {ClientManifest} from "../../../build/bundle";
 
 type StyleElement = HTMLLinkElement | HTMLStyleElement;
 
 export class StyleTransitioner {
-  private manifest: BundleManifest | null;
   private loaded: Map<string, StyleElement>;
 
 
-  constructor(manifest: BundleManifest | null) {
-    this.manifest = manifest;
+  constructor(private manifest: ClientManifest | null) {
     this.loaded = new Map<string, StyleElement>();
   }
 
@@ -28,8 +26,12 @@ export class StyleTransitioner {
   }
 
   async transitionStyles(routeName: string, pageStylesheets: Stylesheet[]): Promise<() => void> {
-    const routeStylesheets = await this.getRouteStylesheets(routeName, this.manifest);
+    const globalStylesheets: Stylesheet[] = globalThis.IS_DEV ? [] : (
+      this.manifest!.global.stylesheets.map(makeLinkStylesheet)
+    );
+    const routeStylesheets = await this.getRouteStylesheets(routeName);
     const newStylesheets = [
+      ...globalStylesheets,
       ...routeStylesheets,
       ...pageStylesheets,
     ];
@@ -147,7 +149,7 @@ export class StyleTransitioner {
     return node;
   }
 
-  async getRouteStylesheets(routeName: string, manifest: BundleManifest | null): Promise<Stylesheet[]> {
+  async getRouteStylesheets(routeName: string): Promise<Stylesheet[]> {
     if (globalThis.IS_DEV) {
       try {
         const res = await fetch(`${DEV_ROUTE_CSS_PATH}?route=${encodeURIComponent(routeName)}`);
@@ -159,10 +161,10 @@ export class StyleTransitioner {
         return [];
       }
     } else {
-      if (!manifest) {
+      if (!this.manifest) {
         throw new Error("[verso] no bundle manifest");
       }
-      const routeAssets = manifest[routeName];
+      const routeAssets = this.manifest.routes[routeName];
       if (!routeAssets) {
         throw new Error(`[verso] no bundles for route ${routeName}`);
       }
