@@ -23,7 +23,6 @@ import {PageElementProcessor} from "../common/PageElementProcessor";
 import {renderToString} from "react-dom/server";
 import {marshallBody} from "../common/util/body";
 import {didAbort} from "../common/abort";
-import type {ClientManifest} from "../../build/bundle";
 
 export function handlePage(page: StandardizedPage): HandlerResponse {
   const { readable, writable } = new TransformStream<Uint8Array>();

@@ -1,4 +1,4 @@
-import type {ClientManifest} from "../../build/bundle";
+import type {ClientManifest} from "../../build/manifest";
 import {getRLS} from "../common/RequestLocalStorage";
 
 const RLS = getRLS<{

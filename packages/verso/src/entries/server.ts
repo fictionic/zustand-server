@@ -1,2 +1,2 @@
-import { makeHandleRequest } from '../core/server/handleRequest';
-export default makeHandleRequest;
+import { createVersoServer } from '../core/server/createVersoServer';
+export default createVersoServer;

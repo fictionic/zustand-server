@@ -1,21 +1,20 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {fillClientSettings, fillServerSettings, type ServerSettings, type VersoConfig} from './config';
-import type {BuildServer} from './buildServer';
-import type {ServerAssets} from './bundle';
+import {fillClientSettings, fillServerSettings, type VersoConfig} from './config';
 import {VERSO_ENTRY} from './constants';
+import type {ServerFactory} from './createServerFactory';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const BOOTSTRAP_PATH = path.resolve(__dirname, VERSO_ENTRY.bootstrap);
-const BUILDSERVER_PATH = path.resolve(__dirname, VERSO_ENTRY.buildServer);
+const BOOTSTRAPCLIENT_PATH = path.resolve(__dirname, VERSO_ENTRY.bootstrapClient);
+const CREATESERVERFACTORY_PATH = path.resolve(__dirname, VERSO_ENTRY.createServerFactory);
 
 export interface EntrypointGenerator {
   generateClientEntrypoint(): string;
   generateServerEntrypoint(): string;
 }
 
-export function getEntrypointGenerator(
+export function createEntrypointGenerator(
   handlerBasePath: string,
   versoConfig: VersoConfig,
 ): EntrypointGenerator {
@@ -43,7 +42,7 @@ export function getEntrypointGenerator(
       } = generateStaticImports(middlewarePaths, 'middleware');
 
       return `
-import { bootstrap } from ${quote(BOOTSTRAP_PATH)};
+import { default as bootstrapClient } from ${quote(BOOTSTRAPCLIENT_PATH)};
 
 const routes = ${JSON.stringify(routes)};
 
@@ -56,7 +55,7 @@ const pageLoaders = {
 ${middlewareImportStatements.join('\n')}
 const middleware = [${middlewareImportNames.join(', ')}];
 
-bootstrap(routes, pageLoaders, middleware, clientSettings);
+bootstrapClient(routes, pageLoaders, middleware, clientSettings);
 `.trim();
     },
 
@@ -83,7 +82,7 @@ bootstrap(routes, pageLoaders, middleware, clientSettings);
       }  = generateStaticImports(middlewarePaths, 'middleware');
 
       return `
-import { buildServer } from ${quote(BUILDSERVER_PATH)};
+import { default as createServerFactory } from ${quote(CREATESERVERFACTORY_PATH)};
 
 const routes = ${JSON.stringify(routes)};
 
@@ -95,29 +94,21 @@ const routeHandlers = {
 ${middlewareImportStatements.join('\n')}
 const middleware = [${middlewareImportNames.join(',\n')}];
 
-const serverSettings = ${JSON.stringify(serverSettings)};
+const settings = ${JSON.stringify(serverSettings)};
 
-export function getServer(serverAssets) {
-  return buildServer(
-    routes,
-    routeHandlers,
-    middleware,
-    serverAssets,
-    serverSettings,
-  );
-}
-
-export function getSettings() {
-  return serverSettings;
-}
+export default createServerFactory({
+  routes,
+  routeHandlers,
+  middleware,
+  settings,
+});
 `.trim();
     }
   };
 };
 
 export type ServerEntry = {
-  getServer(b: ServerAssets): ReturnType<BuildServer>;
-  getSettings(): ServerSettings;
+  default: ServerFactory;
 };
 
 function quote(s: string) {

@@ -1,15 +1,20 @@
 import sirv from 'sirv';
 import {toReqRes, toFetchResponse} from 'fetch-to-node';
-import {isDev} from '../common/env';
-import type {RequestHandler} from '../../vendor/hattip/compose';
+import type {RequestHandler} from '../vendor/hattip/compose';
 
-export function serveStaticContent(resolvedStaticDir: string | null): RequestHandler {
-  if (!resolvedStaticDir) {
+/**
+ * static file serving handler for node, built with sirv
+ */
+type Opts = {
+  isDev?: boolean;
+};
+export function serveStaticContent(dir: string | null, opts?: Opts): RequestHandler {
+  if (!dir) {
     return () => {};
   }
-  const assets = sirv(resolvedStaticDir, {
+  const assets = sirv(dir, {
     maxAge: 3600,
-    dev: isDev(),
+    dev: opts?.isDev ?? false,
   });
   return (ctx) => new Promise<Response | void>((resolve, reject) => {
     const { req: nodeReq, res: nodeRes } = toReqRes(ctx.request);

@@ -7,7 +7,7 @@ import {CLIENT_MANIFEST_KEY, VersoPipe} from '../common/VersoPipe';
 
 export type PageLoaders = Record<string, () => Promise<PageDefinition>>;
 
-export async function bootstrap(
+export async function bootstrapClient(
   routes: RoutesMap,
   pageLoaders: PageLoaders,
   middleware: MiddlewareDefinition[],

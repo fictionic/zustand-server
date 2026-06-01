@@ -6,26 +6,24 @@ import { isRunnableDevEnvironment, normalizePath, type ModuleNode, type Plugin, 
 import { fillServerSettings, type RoutesMap, type VersoConfig } from './config';
 import type { RouteHandler } from '../core/common/handler/RouteHandler';
 import type { Script, Stylesheet } from '../core/common/handler/Page';
-import type { ClientManifest } from './bundle';
+import type { ClientManifest } from './manifest';
 import { BUILT_STATIC_DIRNAME, CLIENT_BUNDLE_DIR, clientAssetPathToUrl, DEFAULT_OUTDIR, MANIFEST_FILENAME, SERVER_BUNDLE_DIR, SERVER_ENTRY_FILENAME, VERSO_ENTRY } from './constants';
 import { DEV_ROUTE_CSS_PATH } from '../core/common/constants';
 import { createViteBundleLoader, makeAsyncScript } from './ViteBundleLoader';
 import { toWebRequest } from '../vendor/hattip/node-request';
 import { sendWebResponse } from '../vendor/hattip/node-response';
-import { getEntrypointGenerator, type EntrypointGenerator } from './entrypoint';
+import { createEntrypointGenerator, type EntrypointGenerator } from './entrypoint';
 import { createJiti, type Jiti } from 'jiti';
-import type {MakeHandleRequest} from '../core/server/handleRequest';
 import type { MiddlewareDefinition } from '../core/common/handler/Middleware';
 import {createResolver} from '../core/common/resolver';
 import type {RequestHandler} from '../vendor/hattip/compose';
 import {cpSync, existsSync, rmSync} from 'node:fs';
+import type {CreateVersoServer} from '../core/server/createVersoServer';
+import {serveStaticContent} from './static';
 
 const VERSO_CONFIG_FILE_NAME = 'verso.config.ts';
 
 const VERSO_DIST_ROOT = path.dirname(fileURLToPath(import.meta.url)); // we are running from dist/plugin.js
-
-// in the dev server we have to import makeHandleRequest through the vite module graph
-const SERVER_PATH = path.resolve(VERSO_DIST_ROOT, VERSO_ENTRY.makeHandleRequest);
 
 const CLIENT_ENTRY_VIRTUAL_ID = 'virtual:verso/entry';
 const CLIENT_ENTRY_RESOLVED_ID = '\0' + CLIENT_ENTRY_VIRTUAL_ID;
@@ -43,7 +41,7 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
 
   // first load verso.config.ts
   const versoConfigPath = configPathOverride ?? path.resolve(process.cwd(), VERSO_CONFIG_FILE_NAME);
-  const versoConfig = await importWithJiti<VersoConfig>(versoConfigPath);
+  const versoConfig = (await importDefaultWithJiti<VersoConfig>(versoConfigPath));
 
   // populated in configResolved
   let resolvedRootDir: string | null = null;
@@ -177,7 +175,7 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
           throw new Error(`[verso] base !== '/' is not supported (got ${JSON.stringify(config.base)}). Verso assumes a root deployment.`);
         }
         resolvedRootDir = config.root; // the user might have set a custom root dir
-        entrypointGenerator = getEntrypointGenerator(resolvedRootDir, versoConfig);
+        entrypointGenerator = createEntrypointGenerator(resolvedRootDir, versoConfig);
 
         // enforce that the client and ssr env outDirs are siblings.
         // we need them to share a parent dir so we can colocate them with
@@ -347,7 +345,7 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
 
         const siteMiddlewarePaths = versoConfig.middleware ?? [];
         const siteMiddleware = await Promise.all(
-          siteMiddlewarePaths.map((modulePath) => importWithVite<MiddlewareDefinition>(vite, modulePath))
+          siteMiddlewarePaths.map(async (modulePath) => await importDefaultWithVite<MiddlewareDefinition>(vite, modulePath))
         );
         // systemMiddleware has to come first, so page modules + assets are loaded before any userland assets
         const globalMiddleware: Array<MiddlewareDefinition> = [...systemMiddleware, ...siteMiddleware];
@@ -355,7 +353,7 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
         const getRouteHandler = async (routeName: string) => {
           const resolvedPath = routeNameToHandlerPath[routeName];
           if (!resolvedPath) return null;
-          return await importWithVite<RouteHandler<any, any, any>>(vite, resolvedPath);
+          return await importDefaultWithVite<RouteHandler<any, any, any>>(vite, resolvedPath);
         };
 
         const { routes } = versoConfig;
@@ -388,13 +386,14 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
         const { staticDir } = serverSettings;
         const resolvedStaticDir = staticDir === null ? null : path.resolve(resolvedRootDir!, staticDir);
 
-        const makeHandleRequest = await importWithVite<MakeHandleRequest>(vite, SERVER_PATH);
+        const serverEntryPath = path.resolve(VERSO_DIST_ROOT, VERSO_ENTRY.createVersoServer);
+        const createVersoServer = await importDefaultWithVite<CreateVersoServer>(vite, serverEntryPath);
 
-        const handleRequest = makeHandleRequest({
+        const versoServer = createVersoServer({
           resolver,
           manifest: null,
-          serveInternalAssets: serveClientStylesheets,
-          resolvedStaticDir,
+          serveInternal: serveClientStylesheets,
+          serveStatic: serveStaticContent(resolvedStaticDir, { isDev: true }),
           settings: serverSettings,
         });
 
@@ -402,7 +401,7 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
           vite.middlewares.use(async (req, res) => {
             try {
               const request = toWebRequest(req, res);
-              const response = await handleRequest(request);
+              const response = await versoServer.serve(request);
               await sendWebResponse(req, res, response);
             } catch (e) {
               if (res.destroyed || res.writableEnded) {
@@ -494,14 +493,14 @@ function appendQuery(url: string, param: string): string {
 // for importing modules without a vite dev server.
 // only needed for loading the verso config file
 let jiti: Jiti;
-async function importWithJiti<T>(modulePath: string): Promise<T> {
+async function importDefaultWithJiti<T>(modulePath: string): Promise<T> {
   if (!jiti) jiti = createJiti(import.meta.url);
-  return await importWith(jiti.import.bind(jiti), modulePath);
+  return await importDefaultWith(jiti.import.bind(jiti), modulePath);
 }
 
-async function importWithVite<T>(vite: ViteDevServer, modulePath: string): Promise<T> {
+async function importDefaultWithVite<T>(vite: ViteDevServer, modulePath: string): Promise<T> {
   const runner = getSSRRunner(vite);
-  return await importWith((id) => runner.import(id), modulePath);
+  return await importDefaultWith((id) => runner.import(id), modulePath);
 }
 
 function getSSRRunner(vite: ViteDevServer) {
@@ -512,7 +511,7 @@ function getSSRRunner(vite: ViteDevServer) {
   return ssrEnv.runner;
 }
 
-async function importWith<T>(importer: (modulePath: string) => Promise<any>, modulePath: string): Promise<T> {
+async function importDefaultWith<T>(importer: (modulePath: string) => Promise<any>, modulePath: string): Promise<T> {
   const module = await importer(modulePath);
   const defaultExport = module.default as T;
   if (!defaultExport) {

@@ -4,15 +4,15 @@ import type {ServerSettings} from "../../build/config";
 import type {Resolver} from "../common/resolver";
 import {getHandlerResponse} from "./response";
 import {getServerStash} from "./stash";
-import type {HandleRequest} from "./handleRequest";
 import {initAbort} from "../common/abort";
 import type {RequestHandler} from "../../vendor/hattip/compose";
-import type {ClientManifest} from "../../build/bundle";
+import type {ClientManifest} from "../../build/manifest";
+import type {Serve} from "./createVersoServer";
 
 export type RunVerso = (opts: {
   resolver: Resolver,
   manifest: ClientManifest | null, // null in dev
-  loopback: HandleRequest,
+  loopback: Serve,
   settings: ServerSettings
 }) => RequestHandler;
 

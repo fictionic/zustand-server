@@ -33,7 +33,7 @@ export function clientAssetUrlToPath(assetUrl: string) {
 // tsup config, which cannot import from here. just listing them here
 // so the dependency is explicit.
 export const VERSO_ENTRY = {
-  buildServer: 'build.js',
-  bootstrap: 'client.js',
-  makeHandleRequest: 'server.js',
+  createServerFactory: 'build.js',
+  createVersoServer: 'server.js',
+  bootstrapClient: 'client.js',
 };

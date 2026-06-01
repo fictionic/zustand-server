@@ -2,47 +2,56 @@ import {runWithServerRLS} from "../common/RequestLocalStorage";
 import type {ServerSettings} from "../../build/config";
 import type {Resolver} from "../common/resolver";
 import {resolvePublicRequest} from "./resolvePublicRequest";
-import {serveStaticContent} from "./static";
 import {runVerso} from "./runVerso";
 import {handleFailsafeTimeouts} from "./failsafe";
 import {compose, type RequestHandler} from "../../vendor/hattip/compose";
 import type {AdapterRequestContext} from "../../vendor/hattip/core";
-import type {ClientManifest} from "../../build/bundle";
+import type {ClientManifest} from "../../build/manifest";
 
-export type MakeHandleRequest = (opts: {
+type ServerDeps = {
   resolver: Resolver;
   manifest: ClientManifest | null;
-  serveInternalAssets: RequestHandler;
-  resolvedStaticDir: string | null;
+  serveInternal: RequestHandler;
+  serveStatic: RequestHandler;
   settings: ServerSettings;
-}) => HandleRequest;
+};
 
-export type HandleRequest = (request: Request) => Promise<Response>;
+// TODO this type should probably live somewhere more centralized
+export type Serve = (request: Request) => Promise<Response>;
 
-export const makeHandleRequest: MakeHandleRequest = ({
+export interface VersoServer {
+  serve: Serve;
+}
+
+export type CreateVersoServer = (deps: ServerDeps) => VersoServer;
+
+export const createVersoServer: CreateVersoServer = ({
   resolver,
   manifest,
-  serveInternalAssets,
-  resolvedStaticDir,
+  serveInternal,
+  serveStatic,
   settings,
-}): HandleRequest => {
-  let handleRequest: HandleRequest;
+}): VersoServer => {
+  let serve: Serve;
 
   // for loopback fetch() requests
-  const loopback: HandleRequest = async (req) => {
-    return await handleRequest(req);
+  const loopback: Serve = async (req) => {
+    return await serve(req);
   };
 
   const hattipHandler = compose(
     handleError,
-    handleFailsafeTimeouts(settings),
     resolvePublicRequest(settings),
-    serveInternalAssets,
-    serveStaticContent(resolvedStaticDir),
+    serveInternal,
+    serveStatic,
+    // failsafe runs after the bundle/static serving, because we
+    // don't want to cut off the output stream of a raw file; we
+    // know it's bounded
+    handleFailsafeTimeouts(settings),
     runVerso({resolver, manifest, loopback, settings}),
   );
 
-  handleRequest = (req: Request) => runWithServerRLS(async () => {
+  serve = (req: Request) => runWithServerRLS(async () => {
     const ctx: AdapterRequestContext = {
       request: req,
       ip: '', // TODO
@@ -54,7 +63,9 @@ export const makeHandleRequest: MakeHandleRequest = ({
     return await hattipHandler(ctx);
   });
 
-  return handleRequest;
+  return {
+    serve,
+  };
 }
 
 const handleError: RequestHandler = (ctx) => {

@@ -5,7 +5,7 @@ import { getRLS } from '../RequestLocalStorage';
 import { FetchCache, reifyCachedResponse, type CacheableRequest, type DehydratedCache } from './cache';
 import { nativeFetch } from './nativeFetch';
 import type { FetchRequestInterceptor, FetchRequestSettings, VersoFetchInit } from './types';
-import type {HandleRequest} from '../../server/handleRequest';
+import type {Serve} from '../../server/createVersoServer';
 import {hasBinaryBody} from '../util/body';
 
 const DEFAULT_SETTINGS: Required<FetchRequestSettings> = {
@@ -23,7 +23,7 @@ const RLS = getRLS<{
   cache: FetchCache;
   requestOrigin?: string;
   originSetting?: FetchOrigin;
-  handleLoopbackRequest?: HandleRequest;
+  handleLoopbackRequest?: Serve;
   interceptor?: FetchRequestInterceptor;
 }>();
 
@@ -41,7 +41,7 @@ export function setFetchInterceptor(interceptor: FetchRequestInterceptor) {
 
 function serverInit(
   nativeRequest: Request,
-  loopback: HandleRequest,
+  loopback: Serve,
   serverSettings: ServerSettings,
 ) {
   RLS().cache = new FetchCache();

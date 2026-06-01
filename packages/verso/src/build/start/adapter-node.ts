@@ -1,48 +1,40 @@
 import type {RuntimeAdapter} from "./adapter";
 import http from 'node:http';
-import path from 'node:path';
-import { readFile } from 'node:fs/promises';
-import type { ClientManifest } from '../bundle';
-import { DEFAULT_OUTDIR, MANIFEST_FILENAME, SERVER_ENTRY_PATH } from '../constants';
 import {pathToFileURL} from "node:url";
 import { toWebRequest } from '../../vendor/hattip/node-request';
 import { sendWebResponse } from '../../vendor/hattip/node-response';
+import {readFile} from "node:fs/promises";
+import {serveStaticContent} from "../static";
 
-export function getAdapter(outDir = DEFAULT_OUTDIR): RuntimeAdapter {
+// how long to let in-flight responses drain after an abort before
+// forcibly destroying their connections.
+// TODO: this should probably be configurable, for k8s
+const SHUTDOWN_GRACE_MS = 5000;
+
+export function getAdapter(): RuntimeAdapter {
   return {
-    loadAssets: async () => {
-      // TODO: adapters shouldn't have to know the manifest filename...
-      const manifestPath = path.resolve(outDir, MANIFEST_FILENAME);
-      const manifest: ClientManifest = (await import(manifestPath)).default;
+    importModule: (absPath) => import(pathToFileURL(absPath).href),
 
-      return {
-        manifest,
-        loadBundle: async (bundleBasename) => {
-          try {
-            return await readFile(path.resolve(outDir, bundleBasename));
-          } catch (err) {
-            if ((err as ErrnoException).code === 'ENOENT') {
-              return null
-            }
-            throw err;
-          }
-        },
-        runDir: path.resolve(outDir),
-      };
+    readArtifact: async (absPath) => {
+      try {
+        return await readFile(absPath);
+      } catch (err) {
+        if ((err as ErrnoException).code === 'ENOENT') return null;
+        throw err;
+      }
     },
 
-    loadServerEntry: async () => {
-      const serverEntryPath = pathToFileURL(path.resolve(outDir, SERVER_ENTRY_PATH)).href;
-      return await import(serverEntryPath);
+    createStaticHandler: (dir) => {
+      return serveStaticContent(dir);
     },
 
-    serve: async (handleRequest, opts) => {
-      const { port, host, signal } = opts;
+    serve: async (versoServer, opts) => {
+      const { port, hostname, signal } = opts;
 
       const server = http.createServer(async (nodeReq, nodeRes) => {
         try {
           const request = toWebRequest(nodeReq, nodeRes);
-          const response = await handleRequest(request);
+          const response = await versoServer.serve(request);
           await sendWebResponse(nodeReq, nodeRes, response);
         } catch (e) {
           if (nodeRes.destroyed || nodeRes.writableEnded) {
@@ -55,14 +47,24 @@ export function getAdapter(outDir = DEFAULT_OUTDIR): RuntimeAdapter {
       });
 
       await new Promise<void>((resolve) => {
-        server.listen(port, host, () => resolve());
+        server.listen(port, hostname, () => resolve());
       });
 
       const close = () => new Promise<void>((resolve, reject) => {
         server.close((err) => err ? reject(err) : resolve());
+        // server.close() waits for existing connections to end but won't close
+        // idle keep-alive sockets itself, so reap them now or shutdown hangs.
+        server.closeIdleConnections();
       });
 
-      signal?.addEventListener('abort', () => { void close(); }, { once: true });
+      signal.addEventListener('abort', () => {
+        void close();
+        // backstop: anything still streaming after the grace period gets
+        // its connection destroyed so the process can exit.
+        setTimeout(() => {
+          server.closeAllConnections();
+        }, SHUTDOWN_GRACE_MS).unref();
+      }, { once: true });
 
       return {
         url: formatUrl(server),

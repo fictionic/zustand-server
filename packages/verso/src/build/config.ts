@@ -62,12 +62,12 @@ export type ServerSettings = {
    */
   fetchOrigin: FetchOrigin;
   /**
-   * Failsafe timeout, in ms, for the server to start streaming the response (TTFB).
+   * Failsafe deadline, in ms, for the server to start streaming the response (TTFB).
    * Timeouts result in an HTTP 500.
    *
    * Default: 20_000 (20 seconds).
    */
-  responseStartTimeout: number;
+  failsafeTtfbDeadlineMs: number;
   /**
    * Failsafe timeout, in ms, for the server to finish streaming the response.
    *
@@ -80,7 +80,7 @@ export type ServerSettings = {
    *
    * Default: 20_000 (20 seconds).
    */
-  responseEndTimeout: number;
+  failsafeResponseDeadlineMs: number;
 };
 
 const DEFAULT_SERVER_SETTINGS: ServerSettings = {
@@ -88,8 +88,8 @@ const DEFAULT_SERVER_SETTINGS: ServerSettings = {
   allowedHosts: ['localhost'],
   trustProxy: false,
   fetchOrigin: 'request-host',
-  responseStartTimeout: 20_000,
-  responseEndTimeout: 20_000,
+  failsafeTtfbDeadlineMs: 20_000,
+  failsafeResponseDeadlineMs: 20_000,
 };
 
 export function fillServerSettings(s?: Partial<ServerSettings>): ServerSettings {

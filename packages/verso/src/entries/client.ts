@@ -1,1 +1,2 @@
-export { bootstrap, type PageLoaders } from '../core/client/bootstrap';
+import { bootstrapClient } from '../core/client/bootstrap';
+export default bootstrapClient;
