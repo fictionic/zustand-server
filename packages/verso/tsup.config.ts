@@ -4,6 +4,8 @@ import { defineConfig } from 'tsup';
 
 const runtimeExternal = [
   'vite',
+  'vitest',
+  'vitest/config',
   '@vitejs/plugin-react',
   'react',
   'react-dom',
@@ -21,6 +23,8 @@ export default defineConfig([
       config: 'src/entries/config.ts',
       plugin: 'src/entries/plugin.ts',
       testing: 'src/entries/testing.ts',
+      'testing-config': 'src/entries/testing-config.ts',
+      'testing-setup': 'src/entries/testing-setup.ts',
       // these are needed for the userland build
       build: `src/entries/build.ts`,
       server: 'src/entries/server.ts',

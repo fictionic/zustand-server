@@ -1,33 +1,12 @@
 import { defineConfig } from 'vitest/config';
-
-const shared = {
-  include: ['src/tests/**/*.test.{ts,tsx}'],
-  setupFiles: ['./src/tests/setup.ts'],
-} as const;
+import { versoProjects } from './src/entries/testing-config';
 
 export default defineConfig({
   test: {
-    projects: [
-      {
-        define: {
-          'globalThis.IS_SERVER': 'true',
-        },
-        test: {
-          ...shared,
-          name: 'server',
-          environment: 'node',
-        },
+    projects: versoProjects({
+      shared: {
+        test: { include: ['src/tests/**/*.test.{ts,tsx}'] },
       },
-      {
-        define: {
-          'globalThis.IS_SERVER': 'false',
-        },
-        test: {
-          ...shared,
-          name: 'client',
-          environment: 'jsdom',
-        },
-      },
-    ],
+    }),
   },
 });

@@ -1,21 +1,16 @@
-import { describe, test } from 'vitest';
+import { describe } from 'vitest';
+import { getPass, type TestPass } from './pass';
 
 export function serverSide(fn: () => void): void {
-  if (IS_SERVER) {
-    describe('(server)', fn);
-  } else {
-    skipEnv('client');
-  }
+  describeInPass('server', fn);
 }
 
 export function clientSide(fn: () => void): void {
-  if (!IS_SERVER) {
-    describe('(client)', fn);
-  } else {
-    skipEnv('server');
-  }
+  describeInPass('client', fn);
 }
 
-function skipEnv(env: string) {
-  describe(`(${env}:skip)`, () => test('skip', () => {}));
+function describeInPass(pass: TestPass, fn: () => void): void {
+  if (getPass() === pass) {
+    describe(`(${pass})`, fn);
+  }
 }

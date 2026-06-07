@@ -16,6 +16,13 @@
       "types": "./dist/testing.d.ts",
       "default": "./dist/testing.js"
     },
+    "./testing/config": {
+      "types": "./dist/testing-config.d.ts",
+      "default": "./dist/testing-config.js"
+    },
+    "./testing/setup": {
+      "default": "./dist/testing-setup.js",
+    },
     "./plugin": {
       "types": "./dist/plugin.d.ts",
       "default": "./dist/plugin.js"
