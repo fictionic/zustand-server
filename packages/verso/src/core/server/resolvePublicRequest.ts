@@ -3,7 +3,7 @@ import type {RequestContext, RequestHandler} from "../../vendor/hattip/compose";
 
 const LOCAL_HOSTS = ['localhost', '127.0.0.1'];
 
-export function resolvePublicRequest(settings: ServerSettings): RequestHandler {
+export function resolvePublicRequest(settings: ServerSettings, allowLoopbackHosts = false): RequestHandler {
   return (ctx: RequestContext) => {
     const rawReq = ctx.request;
     const rawUrl = ctx.url;
@@ -25,9 +25,9 @@ export function resolvePublicRequest(settings: ServerSettings): RequestHandler {
 
     const { allowedHosts } = settings;
     if (!hostIsAllowed(lowercaseHost, allowedHosts)) {
-      // allow all local hosts in dev mode, for convenience. allowedHosts is mostly a prod setting
-      const isLocalhostDev = globalThis.IS_DEV && LOCAL_HOSTS.includes(lowercaseHost.split(':')[0]!);
-      if (!isLocalhostDev) {
+      // allow all local hosts in dev/preview mode, for convenience. allowedHosts is mostly a prod setting
+      const isAllowedLoopback = allowLoopbackHosts && LOCAL_HOSTS.includes(lowercaseHost.split(':')[0]!);
+      if (!isAllowedLoopback) {
         console.error(`[verso] Host not in allowedHosts: ${host}`);
         return misdirectedRequest();
       }

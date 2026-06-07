@@ -1,7 +1,7 @@
 import { createPipe, type PipeSchema } from "./util/ServerClientPipe";
 import type { CacheableRequest, CacheEntryData, DehydratedCache } from "./fetch/cache";
 import type {MarshalledBody} from "./util/body";
-import type {ClientManifest} from "../../build/manifest";
+import type {ClientManifest} from "@verso-js/contract";
 
 export const VERSO_PIPE_NAME = '__versoPipe';
 

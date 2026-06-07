@@ -9,9 +9,35 @@
         "typescript": "5",
       },
     },
+    "packages/adapter-bun": {
+      "name": "@verso-js/adapter-bun",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@types/bun": "latest",
+        "@types/node": "^25",
+        "@verso-js/contract": "workspace:*",
+      },
+    },
+    "packages/adapter-node": {
+      "name": "@verso-js/adapter-node",
+      "version": "0.0.0",
+      "dependencies": {
+        "@verso-js/node-runtime": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/node": "^25",
+        "@verso-js/contract": "workspace:*",
+        "sirv": "^3",
+      },
+    },
+    "packages/contract": {
+      "name": "@verso-js/contract",
+      "version": "0.0.0",
+    },
     "packages/demo": {
       "name": "@verso-js/demo",
       "dependencies": {
+        "@verso-js/adapter-bun": "workspace:*",
         "@verso-js/playwright": "workspace:*",
         "@verso-js/store-adapter-zustand": "workspace:*",
         "@verso-js/stores": "workspace:*",
@@ -27,6 +53,17 @@
         "@types/react-dom": "^19.2.3",
         "typescript": "^5",
         "vite": "^8.0.0",
+      },
+    },
+    "packages/node-runtime": {
+      "name": "@verso-js/node-runtime",
+      "version": "0.0.0",
+      "dependencies": {
+        "sirv": "^3",
+      },
+      "devDependencies": {
+        "@types/node": "^25",
+        "@verso-js/contract": "workspace:*",
       },
     },
     "packages/playwright": {
@@ -127,10 +164,13 @@
         "verso": "./dist/cli.js",
       },
       "dependencies": {
+        "@verso-js/adapter-node": "workspace:*",
+        "@verso-js/contract": "workspace:*",
+        "@verso-js/node-runtime": "workspace:*",
         "cookie": "^1.1.1",
-        "fetch-to-node": "^2",
         "jiti": "^2.6.1",
         "path-to-regexp": "^8.3.0",
+        "sirv": "^3",
       },
       "devDependencies": {
         "@testing-library/react": "^16.3.2",
@@ -144,7 +184,6 @@
         "@vitejs/plugin-react": "^6.0.1",
         "jsdom": "^29.0.0",
         "react-dom": "^19.2.4",
-        "sirv": "^3",
         "tsup": "^8.5.1",
         "vite": "^8.0.0",
         "vitest": "^4.1.0",
@@ -353,7 +392,7 @@
 
     "@types/aria-query": ["@types/aria-query@5.0.4", "", {}, "sha512-rfT93uj5s0PRL7EzccGMs3brplhcrghnDoV26NqKhCAS1hVo+WdNsPvE/yb6ilfr5hi2MEk6d5EWJTKdxg8jVw=="],
 
-    "@types/bun": ["@types/bun@1.3.13", "", { "dependencies": { "bun-types": "1.3.13" } }, "sha512-9fqXWk5YIHGGnUau9TEi+qdlTYDAnOj+xLCmSTwXfAIqXr2x4tytJb43E9uCvt09zJURKXwAtkoH4nLQfzeTXw=="],
+    "@types/bun": ["@types/bun@1.3.14", "", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
 
     "@types/chai": ["@types/chai@5.2.3", "", { "dependencies": { "@types/deep-eql": "*", "assertion-error": "^2.0.1" } }, "sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA=="],
 
@@ -369,7 +408,15 @@
 
     "@types/react-dom": ["@types/react-dom@19.2.3", "", { "peerDependencies": { "@types/react": "^19.2.0" } }, "sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ=="],
 
+    "@verso-js/adapter-bun": ["@verso-js/adapter-bun@workspace:packages/adapter-bun"],
+
+    "@verso-js/adapter-node": ["@verso-js/adapter-node@workspace:packages/adapter-node"],
+
+    "@verso-js/contract": ["@verso-js/contract@workspace:packages/contract"],
+
     "@verso-js/demo": ["@verso-js/demo@workspace:packages/demo"],
+
+    "@verso-js/node-runtime": ["@verso-js/node-runtime@workspace:packages/node-runtime"],
 
     "@verso-js/playwright": ["@verso-js/playwright@workspace:packages/playwright"],
 
@@ -413,7 +460,7 @@
 
     "bidi-js": ["bidi-js@1.0.3", "", { "dependencies": { "require-from-string": "^2.0.2" } }, "sha512-RKshQI1R3YQ+n9YJz2QQ147P66ELpa1FQEg20Dk8oW9t2KgLbpDLLp9aGZ7y8WHSshDknG0bknqGw5/tyCs5tw=="],
 
-    "bun-types": ["bun-types@1.3.13", "", { "dependencies": { "@types/node": "*" } }, "sha512-QXKeHLlOLqQX9LgYaHJfzdBaV21T63HhFJnvuRCcjZiaUDpbs5ED1MgxbMra71CsryN/1dAoXuJJJwIv/2drVA=="],
+    "bun-types": ["bun-types@1.3.14", "", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
 
     "bundle-require": ["bundle-require@5.1.0", "", { "dependencies": { "load-tsconfig": "^0.2.3" }, "peerDependencies": { "esbuild": ">=0.18" } }, "sha512-3WrrOuZiyaaZPWiEt4G3+IffISVC9HYlWueJEBWED4ZH4aIAC2PnkdnuRrR94M+w6yGWn4AglWtJtBI8YqvgoA=="],
 
@@ -460,8 +507,6 @@
     "expect-type": ["expect-type@1.3.0", "", {}, "sha512-knvyeauYhqjOYvQ66MznSMs83wmHrCycNEN6Ao+2AeYEfxUIkuiVxdEa1qlGEPK+We3n0THiDciYSsCcgW/DoA=="],
 
     "fdir": ["fdir@6.5.0", "", { "peerDependencies": { "picomatch": "^3 || ^4" }, "optionalPeers": ["picomatch"] }, "sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg=="],
-
-    "fetch-to-node": ["fetch-to-node@2.1.0", "", {}, "sha512-Wq05j6LE1GrWpT2t1YbCkyFY6xKRJq3hx/oRJdWEJpZlik3g25MmdJS6RFm49iiMJw6zpZuBOrgihOgy2jGyAA=="],
 
     "fix-dts-default-cjs-exports": ["fix-dts-default-cjs-exports@1.0.1", "", { "dependencies": { "magic-string": "^0.30.17", "mlly": "^1.7.4", "rollup": "^4.34.8" } }, "sha512-pVIECanWFC61Hzl2+oOCtoJ3F17kglZC/6N94eRWycFgBH35hHx0Li604ZIzhseh97mf2p0cv7vVrOZGoqhlEg=="],
 

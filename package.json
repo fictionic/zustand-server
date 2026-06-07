@@ -2,7 +2,11 @@
   "name": "verso-workspace",
   "private": true,
   "workspaces": [
+    "packages/adapter-node",
+    "packages/adapter-bun",
+    "packages/contract",
     "packages/verso",
+    "packages/node-runtime",
     "packages/stores",
     "packages/store-adapter-zustand",
     "packages/store-adapter-redux",

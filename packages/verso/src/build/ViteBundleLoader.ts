@@ -1,6 +1,6 @@
 import type {LinkTag, Script, Stylesheet} from "../core/common/handler/PageHeader";
 import { defineMiddleware, type MiddlewareDefinition } from "../core/common/handler/Middleware";
-import type {MaybePromise} from "../core/common/util/types";
+import type {MaybePromise} from "../util/promise";
 
 export interface ViteBundleLoaderConfig {
   /**

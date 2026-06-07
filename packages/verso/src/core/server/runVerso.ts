@@ -1,3 +1,4 @@
+import type {ClientManifest, Serve} from "@verso-js/contract";
 import {ServerCookies} from "./ServerCookies";
 import {Fetch} from "../common/fetch/Fetch";
 import type {ServerSettings} from "../../build/config";
@@ -6,22 +7,20 @@ import {getHandlerResponse} from "./response";
 import {getServerStash} from "./stash";
 import {initAbort} from "../common/abort";
 import type {RequestHandler} from "../../vendor/hattip/compose";
-import type {ClientManifest} from "../../build/manifest";
-import type {Serve} from "./createVersoServer";
 
-export type RunVerso = (opts: {
+type RunVersoOpts = {
   resolver: Resolver,
   manifest: ClientManifest | null, // null in dev
   loopback: Serve,
   settings: ServerSettings
-}) => RequestHandler;
+};
 
-export const runVerso: RunVerso = ({
+export function runVerso({
   resolver,
   manifest,
   loopback,
   settings,
-}) => {
+}: RunVersoOpts): RequestHandler {
   return async (ctx) => {
     const req = ctx.request;
 
@@ -29,7 +28,7 @@ export const runVerso: RunVerso = ({
 
     getServerStash().request = req;
     getServerStash().manifest = manifest;
-    // ^it'd be awkward to wire this through to handlePage
+    getServerStash().headersLocked = false;
 
     Fetch.serverInit(req, loopback, settings);
 
@@ -46,7 +45,7 @@ export const runVerso: RunVerso = ({
 
     switch (resolution.kind) {
       case 'not-found':
-        return; // passthrough
+        return; // passthrough to fallback hattip 404 handler
       case 'error':
         throw new Error('[verso] resolution error');
       case 'directive':
@@ -59,14 +58,19 @@ export const runVerso: RunVerso = ({
 
     getServerStash().routeName = routeName;
 
-    const cookieHeaders = cookies.consumeHeaders();
+    const cookieHeaders = cookies.getResponseSetCookieHeaders();
     concatHeaders(cookieHeaders);
 
     if (locationDirective) {
       headers.append('Location', locationDirective);
     }
 
+    // response headers are locked in. any userland attempts to update them (either
+    // with cookies.ts or indirectly with a properly configured fetch) will fail loudly.
+    getServerStash().headersLocked = true;
+
     if (!handler) {
+      // non-2XX response
       return new Response(null, {
         status,
         headers,

@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {fillClientSettings, fillServerSettings, type VersoConfig} from './config';
-import {VERSO_ENTRY} from './constants';
+import {VERSO_ENTRY} from './paths';
 import type {ServerFactory} from './createServerFactory';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

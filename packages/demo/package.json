@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "start": "verso start",
+    "preview": "vite preview",
     "test:e2e": "bunx playwright test -c playwright.dev.config.ts",
     "test:e2e:smoke": "bunx playwright test -c playwright.dev.config.ts smoke.spec.ts && bunx playwright test -c playwright.prod.config.ts",
     "test:e2e:prod": "bunx playwright test -c playwright.prod.config.ts",
@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@verso-js/verso": "workspace:*",
+    "@verso-js/adapter-bun": "workspace:*",
     "@verso-js/stores": "workspace:*",
     "@verso-js/store-adapter-zustand": "workspace:*",
     "@verso-js/playwright": "workspace:*",

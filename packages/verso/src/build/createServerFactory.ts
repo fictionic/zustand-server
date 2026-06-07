@@ -4,18 +4,12 @@ import type {RoutesMap, ServerSettings} from "./config";
 import {makeLinkStylesheet, type Script, type Stylesheet} from "../core/common/handler/Page";
 import {createViteBundleLoader, makeAsyncScript} from "./ViteBundleLoader";
 import {createResolver, type GetRouteHandler} from "../core/common/resolver";
-import {CLIENT_BUNDLE_URL_PREFIX, clientAssetUrlToPath} from "./constants";
+import {CLIENT_BUNDLE_URL_PREFIX, clientAssetUrlToPath} from "./paths";
 import type {RequestHandler} from "../vendor/hattip/compose";
-import {createVersoServer, type VersoServer} from "../core/server/createVersoServer";
-import type {ClientManifest} from "./manifest";
+import {createVersoServer} from "../core/server/createVersoServer";
+import type {Server, ServerFactory, ServerRuntime} from "@verso-js/contract";
 
-export type ServerRuntime = {
-  manifest: ClientManifest;
-  loadBundle: (bundleBasename: string) => Promise<Uint8Array | null>;
-  serveStatic: RequestHandler;
-};
-
-export type ServerFactory = (runtime: ServerRuntime) => VersoServer;
+export type {ServerFactory, ServerRuntime} from "@verso-js/contract";
 
 type CreateServerFactoryOpts = {
   routes: RoutesMap,
@@ -32,7 +26,7 @@ export function createServerFactory({
   routeHandlers,
   settings,
 }: CreateServerFactoryOpts): ServerFactory {
-  return (runtime: ServerRuntime): VersoServer => {
+  return (runtime: ServerRuntime): Server => {
     // first create the resolver
     const { manifest } = runtime;
     const globalScripts: Script[] = manifest.global.scripts.map(makeAsyncScript);
@@ -73,16 +67,16 @@ export function createServerFactory({
       }
     }
 
-    // then get the static serving handler from the runtime
-    const { serveStatic } = runtime;
+    // allow serving from localhost in the preview server
+    const { allowLoopbackHosts } = runtime;
 
     // now we can wire it all together
     return createVersoServer({
       resolver,
       manifest,
       serveInternal: serveBundles,
-      serveStatic,
       settings,
+      allowLoopbackHosts,
     });
   }
 }

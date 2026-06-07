@@ -20,10 +20,11 @@ export default defineConfig([
       index: 'src/entries/index.ts',
       config: 'src/entries/config.ts',
       plugin: 'src/entries/plugin.ts',
+      testing: 'src/entries/testing.ts',
+      // these are needed for the userland build
       build: `src/entries/build.ts`,
       server: 'src/entries/server.ts',
       client: 'src/entries/client.ts',
-      testing: 'src/entries/testing.ts',
     },
     outDir: 'dist',
     format: ['esm'],
@@ -38,12 +39,9 @@ export default defineConfig([
     format: ['esm'],
     dts: false,
     clean: false,
-    external: runtimeExternal,
-    // Shebang + set globalThis flags before any runtime imports execute,
-    // so dist/plugin.js (loaded lazily) sees defined values.
+    external: runtimeExternal, // TODO: needed?
     banner: {
-      js: '#!/usr/bin/env node\nglobalThis.IS_SERVER = true; globalThis.IS_DEV = false;',
-      // TODO: do we still need those globals here?
+      js: '#!/usr/bin/env node',
     },
     async onSuccess() {
       await chmod(join('dist', 'cli.js'), 0o755);

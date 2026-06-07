@@ -7,7 +7,6 @@ import {FETCH_CACHE_KEY, FN_ABORT_HYDRATION, FN_HYDRATE_ROOTS_UP_TO, FN_RECEIVE_
 import {Fetch} from "../common/fetch/Fetch";
 import {StyleTransitioner} from "./transitioners/styles";
 import { ScriptTransitioner } from "./transitioners/scripts";
-import type {ClientManifest} from "../../build/manifest";
 import {HistoryManager, type NavigationDirection, type OnPopState} from "./history";
 import {ClientNavigationManager, type StartNavigation, type CommitNavigation} from "./navigation";
 import {BodyElementTransitioner} from "./transitioners/body";
@@ -17,6 +16,7 @@ import type {Resolver} from "../common/resolver";
 import {stripUrlHash} from "./url";
 import type {ClientSettings} from "../../build/config";
 import {unmarshallBody} from "../common/util/body";
+import type {ClientManifest} from "@verso-js/contract";
 
 let self: ClientController | null = null;
 export function getClientController(): ClientController {

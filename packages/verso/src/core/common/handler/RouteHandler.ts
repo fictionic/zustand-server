@@ -1,7 +1,7 @@
 import type {BaseConfig} from "./MiddlewareConfig";
 import type {MiddlewareDefinition, Scope} from "./Middleware";
 import type {RouteHandlerCtx} from "./RouteHandlerCtx";
-import type {MaybePromise} from "../util/types";
+import type {MaybePromise} from "../../../util/promise";
 
 export interface HandlerRegistry {}
 

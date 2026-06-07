@@ -11,12 +11,6 @@ export type FetchOrigin = 'request-host' | 'loopback';
 // non-serializable values cannot be added
 export type ServerSettings = {
   /**
-   * Directory from which to serve static content, or null to disable.
-   *
-   * Default: null.
-   */
-  staticDir: string | null;
-  /**
    * Hosts permitted to reach the server. Requests whose Host header (or
    * X-Forwarded-Host, when `trustProxy` is enabled) does not match an entry
    * here are rejected with a 421 Misdirected Request.
@@ -84,8 +78,7 @@ export type ServerSettings = {
 };
 
 const DEFAULT_SERVER_SETTINGS: ServerSettings = {
-  staticDir: null,
-  allowedHosts: ['localhost'],
+  allowedHosts: [], // user must supply a nonempty array themselves
   trustProxy: false,
   fetchOrigin: 'request-host',
   failsafeTtfbDeadlineMs: 20_000,
@@ -100,6 +93,7 @@ export function fillServerSettings(s?: Partial<ServerSettings>): ServerSettings 
   return settings;
 };
 
+// similarly, these values are serialized into the client entrypoint.
 export type ClientSettings = {
   /**
    * Whether client navigations should reuse existing DOM elements by default

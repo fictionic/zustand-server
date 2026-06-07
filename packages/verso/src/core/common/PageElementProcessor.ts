@@ -1,7 +1,7 @@
 import type {ReactElement} from 'react';
 import {TOKEN, tokenizeElements, type PageElementToken} from '../common/tokenizeElements';
 import {scheduleRootRender} from './components/Root';
-import type {MaybePromise} from './util/types';
+import type {MaybePromise} from '../../util/promise';
 import type {RenderableHTMLAttributes} from './components/attrs';
 import {getAbortPromise} from './abort';
 

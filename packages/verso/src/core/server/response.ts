@@ -1,5 +1,5 @@
 import type {AnyStandardizedHandler} from "../common/handler/RouteHandler";
-import type {MaybePromise} from "../common/util/types";
+import type {MaybePromise} from "../../util/promise";
 import {handleEndpoint} from "./handleEndpoint";
 import {handlePage} from "./handlePage";
 

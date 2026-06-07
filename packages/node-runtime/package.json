@@ -1,0 +1,29 @@
+{
+  "name": "@verso-js/node-runtime",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "bunx tsc --noEmit"
+  },
+  "dependencies": {
+    "sirv": "^3"
+  },
+  "devDependencies": {
+    "@verso-js/contract": "workspace:*",
+    "@types/node": "^25"
+  }
+}

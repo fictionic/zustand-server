@@ -1,7 +1,7 @@
+import type {ClientManifest} from "@verso-js/contract";
 import {DEV_ROUTE_CSS_PATH, DEV_VITE_STYLE_ID_ATTR, PAGE_HEADER_STYLE_ELEMENT_ATTR} from "../../common/constants";
 import {getStyleAttrs, makeLinkStylesheet, setNodeAttrs, type Stylesheet} from "../../common/handler/Page";
 import {normalizeUrlOrigin} from "../url";
-import type {ClientManifest} from "../../../build/manifest";
 
 type StyleElement = HTMLLinkElement | HTMLStyleElement;
 

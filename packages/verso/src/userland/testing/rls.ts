@@ -1,5 +1,5 @@
 import {stopClientRLS, startClientRLS, runWithServerRLS} from "../../core/common/RequestLocalStorage";
-import type {MaybePromise} from "../../core/common/util/types";
+import type {MaybePromise} from "../../util/promise";
 
 export function withRLS<R, P extends MaybePromise<R>>(fn: () => P): () => P {
   if (globalThis.IS_SERVER) {

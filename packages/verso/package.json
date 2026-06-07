@@ -37,7 +37,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "test": "bunx vitest run && bunx vitest run -c vitest.client.config.ts",
+    "test": "bunx vitest run",
     "typecheck": "bunx tsc --noEmit"
   },
   "peerDependencies": {
@@ -59,15 +59,17 @@
     "@vitejs/plugin-react": "^6.0.1",
     "jsdom": "^29.0.0",
     "react-dom": "^19.2.4",
-    "sirv": "^3",
     "tsup": "^8.5.1",
     "vite": "^8.0.0",
     "vitest": "^4.1.0"
   },
   "dependencies": {
+    "@verso-js/contract": "workspace:*",
+    "@verso-js/adapter-node": "workspace:*",
+    "@verso-js/node-runtime": "workspace:*",
     "cookie": "^1.1.1",
-    "fetch-to-node": "^2",
     "jiti": "^2.6.1",
-    "path-to-regexp": "^8.3.0"
+    "path-to-regexp": "^8.3.0",
+    "sirv": "^3"
   }
 }

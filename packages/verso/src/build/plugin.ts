@@ -6,20 +6,29 @@ import { isRunnableDevEnvironment, normalizePath, type ModuleNode, type Plugin, 
 import { fillServerSettings, type RoutesMap, type VersoConfig } from './config';
 import type { RouteHandler } from '../core/common/handler/RouteHandler';
 import type { Script, Stylesheet } from '../core/common/handler/Page';
-import type { ClientManifest } from './manifest';
-import { BUILT_STATIC_DIRNAME, CLIENT_BUNDLE_DIR, clientAssetPathToUrl, DEFAULT_OUTDIR, MANIFEST_FILENAME, SERVER_BUNDLE_DIR, SERVER_ENTRY_FILENAME, VERSO_ENTRY } from './constants';
+import {
+  BUILT_STATIC_DIRNAME,
+  CLIENT_BUNDLE_DIR,
+  clientAssetPathToUrl,
+  DEFAULT_OUTDIR,
+  CLIENT_MANIFEST_FILENAME,
+  SERVER_BUNDLE_DIR,
+  SERVER_ENTRY_FILENAME,
+  VERSO_ENTRY,
+  getBuildPaths,
+} from './paths';
 import { DEV_ROUTE_CSS_PATH } from '../core/common/constants';
 import { createViteBundleLoader, makeAsyncScript } from './ViteBundleLoader';
-import { toWebRequest } from '../vendor/hattip/node-request';
-import { sendWebResponse } from '../vendor/hattip/node-response';
 import { createEntrypointGenerator, type EntrypointGenerator } from './entrypoint';
 import { createJiti, type Jiti } from 'jiti';
 import type { MiddlewareDefinition } from '../core/common/handler/Middleware';
 import {createResolver} from '../core/common/resolver';
 import type {RequestHandler} from '../vendor/hattip/compose';
-import {cpSync, existsSync, rmSync} from 'node:fs';
 import type {CreateVersoServer} from '../core/server/createVersoServer';
-import {serveStaticContent} from './static';
+import {cpSync, existsSync, rmSync} from 'node:fs';
+import { toNodeRequestHandler, createVersoNodeHandler } from "@verso-js/node-runtime";
+import { node } from "@verso-js/adapter-node";
+import type {BuildAdapter, ClientManifest} from '@verso-js/contract';
 
 const VERSO_CONFIG_FILE_NAME = 'verso.config.ts';
 
@@ -37,14 +46,34 @@ const VERSO_PACKAGES = [
   '@verso-js/stores',
 ];
 
-export default async function verso(configPathOverride?: string): Promise<Plugin[]> {
+export type PluginOptions = {
+  configPath: string
+  adapter: BuildAdapter;
+};
+
+function fillPluginOptions(o?: Partial<PluginOptions>): PluginOptions {
+  return Object.assign({}, getDefaultOptions(), o);
+}
+
+function getDefaultOptions(): PluginOptions {
+  return {
+    // TODO what does cwd resolve to? is it the dir from which the user invokes `vite`,
+    // or is it normalized to the vite.config.ts directory?
+    configPath: path.resolve(process.cwd(), VERSO_CONFIG_FILE_NAME),
+    adapter: node(),
+  };
+}
+
+export default async function verso(_opts?: Partial<PluginOptions>): Promise<Plugin[]> {
+  const opts = fillPluginOptions(_opts);
 
   // first load verso.config.ts
-  const versoConfigPath = configPathOverride ?? path.resolve(process.cwd(), VERSO_CONFIG_FILE_NAME);
-  const versoConfig = (await importDefaultWithJiti<VersoConfig>(versoConfigPath));
+  const { configPath } = opts;
+  const versoConfig = (await importDefaultWithJiti<VersoConfig>(configPath));
 
   // populated in configResolved
   let resolvedRootDir: string | null = null;
+  let resolvedPublicDir: string | null = null;
   let entrypointGenerator: EntrypointGenerator | null = null;
   let resolvedSharedOutDir: string | null = null;
 
@@ -94,7 +123,6 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
 
         return {
           appType: isDev ? 'custom' : undefined,
-          publicDir: false, // we handle this ourselves
           resolve: {
             dedupe: ['react', 'react-dom'],
           },
@@ -145,7 +173,7 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
                   input: SERVER_ENTRY_VIRTUAL_ID,
                   output: {
                     format: 'es' as const,
-                    entryFileNames: SERVER_ENTRY_FILENAME, // hardcoded so 'start' can find it
+                    entryFileNames: SERVER_ENTRY_FILENAME, // hardcoded so 'preview' can find it
                     chunkFileNames: 'chunks/[name].js', // in case there's bundle splitting server-side
                     assetFileNames: 'assets/[name][extname]', // in case there's server-side assets?
                   },
@@ -153,7 +181,19 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
               },
             },
           },
-          builder: {}, // without this, `vite build` only builds the client env
+          builder: {
+            async buildApp(builder) {
+              await builder.build(builder.environments.client!);
+              await builder.build(builder.environments.ssr!);
+              const { adapter } = opts;
+              await adapter.adapt({
+                paths: getBuildPaths(),
+                writeEntry: async (contents) => {
+                  await writeFile(path.join(resolvedSharedOutDir!, 'index.js'), contents, { mode: 0o755 });
+                },
+              });
+            },
+          },
         };
       },
 
@@ -191,6 +231,8 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
           );
         }
         resolvedSharedOutDir = clientParent;
+
+        resolvedPublicDir = config.publicDir || null;
       },
 
       async buildStart() {
@@ -289,7 +331,7 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
         }
 
         const manifestJson = JSON.stringify(manifest, null, 2);
-        const manifestPath = path.join(resolvedSharedOutDir!, MANIFEST_FILENAME);
+        const manifestPath = path.join(resolvedSharedOutDir!, CLIENT_MANIFEST_FILENAME);
         await writeFile(manifestPath, `export default ${manifestJson}`);
         console.log("[verso] writing client manifest", manifestPath);
       },
@@ -300,22 +342,22 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
       async closeBundle(error) {
         if (error) return;
         if (this.environment.name !== 'client') return;
-        const { staticDir } = fillServerSettings(versoConfig.server);
-        if (staticDir) {
-          const src = path.resolve(resolvedRootDir!, staticDir);
+        if (resolvedPublicDir) {
+          const src = path.resolve(resolvedRootDir!, resolvedPublicDir);
           const dest = path.resolve(resolvedSharedOutDir!, BUILT_STATIC_DIRNAME);
-          if (existsSync(src)) {
-            // TODO: maybe just clean up all of resolvedSharedOutDir before writing bundles?
-            rmSync(dest, { recursive: true, force: true });
-            cpSync(src, dest, { recursive: true });
+          if (!existsSync(src)) {
+            console.warn(`[verso] publicDir does not exist! ${resolvedPublicDir}`);
+            return;
           }
+          rmSync(dest, { recursive: true, force: true });
+          cpSync(src, dest, { recursive: true });
         }
       },
     },
 
     {
       name: '@verso-js/verso:dev-server',
-      apply: 'serve',
+      apply: 'serve', // TODO: needed?
 
       async configureServer(vite: ViteDevServer) {
         await resolveHandlers(
@@ -381,10 +423,7 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
           }
         };
 
-        // in dev mode we serve static content directly from the staticDir the user specified in verso config
         const serverSettings = fillServerSettings(versoConfig.server);
-        const { staticDir } = serverSettings;
-        const resolvedStaticDir = staticDir === null ? null : path.resolve(resolvedRootDir!, staticDir);
 
         const serverEntryPath = path.resolve(VERSO_DIST_ROOT, VERSO_ENTRY.createVersoServer);
         const createVersoServer = await importDefaultWithVite<CreateVersoServer>(vite, serverEntryPath);
@@ -393,27 +432,40 @@ export default async function verso(configPathOverride?: string): Promise<Plugin
           resolver,
           manifest: null,
           serveInternal: serveClientStylesheets,
-          serveStatic: serveStaticContent(resolvedStaticDir, { isDev: true }),
           settings: serverSettings,
+          allowLoopbackHosts: true,
         });
 
         return () => {
-          vite.middlewares.use(async (req, res) => {
-            try {
-              const request = toWebRequest(req, res);
-              const response = await versoServer.serve(request);
-              await sendWebResponse(req, res, response);
-            } catch (e) {
-              if (res.destroyed || res.writableEnded) {
-                return;
-              }
-              console.error('[verso]', e);
-              res.statusCode = 500;
-              res.setHeader('Content-Type', 'text/html; charset=utf-8');
-              res.end('Internal Server Error');
-            }
-          });
+          // we have to do a little surgery on the vite middleware stack.
+          // vite serves the contents of the root dir, and this can in principle
+          // clash with the user's verso routes. the only way to prevent this is to
+          // rip out the middleware manually.
+          const before = vite.middlewares.stack.length;
+          vite.middlewares.stack = vite.middlewares.stack.filter(
+            (layer) => (layer.handle as { name?: string }).name !== 'viteServeStaticMiddleware',
+          );
+          if (vite.middlewares.stack.length === before) {
+            console.warn('[verso] failed to remove viteServeStaticMiddleware; filesystem contents may clobber site routes');
+          }
+          vite.middlewares.use(toNodeRequestHandler(versoServer.serve));
         };
+      },
+    },
+
+    {
+      name: '@verso-js/verso:preview-server',
+      async configurePreviewServer(preview): Promise<void> {
+        const paths = getBuildPaths();
+        const runDir = resolvedSharedOutDir!;
+        const handler = await createVersoNodeHandler({
+          runDir,
+          paths,
+          allowLoopbackHosts: true,
+        });
+        preview.middlewares.use(handler);
+        // for the preview server, we don't want _any_ of vite's built-in middleware,
+        // so we just call `use()` right away and return void.
       },
     },
   ];

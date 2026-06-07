@@ -1,3 +1,4 @@
+import type {Serve} from '@verso-js/contract';
 import type {FetchOrigin, ServerSettings} from '../../../build/config';
 import {getAbortSignal} from '../abort';
 import {ServerCookies} from '../../server/ServerCookies';
@@ -5,7 +6,6 @@ import { getRLS } from '../RequestLocalStorage';
 import { FetchCache, reifyCachedResponse, type CacheableRequest, type DehydratedCache } from './cache';
 import { nativeFetch } from './nativeFetch';
 import type { FetchRequestInterceptor, FetchRequestSettings, VersoFetchInit } from './types';
-import type {Serve} from '../../server/createVersoServer';
 import {hasBinaryBody} from '../util/body';
 
 const DEFAULT_SETTINGS: Required<FetchRequestSettings> = {

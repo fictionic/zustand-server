@@ -26,4 +26,4 @@ export { useRootData } from '../core/common/components/Root';
 export * from '../userland/hooks';
 
 // Misc
-export { type MaybePromise } from '../core/common/util/types';
+export { type MaybePromise } from '../util/promise';

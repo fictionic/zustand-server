@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { withRLS } from '../userland/testing/rls';
 import { serverSide } from '../userland/testing/isomorphic';
 import { ServerCookies } from '../core/server/ServerCookies';
+import { getServerStash } from '../core/server/stash';
 
 function makeRequest(cookieHeader?: string): Request {
   const headers: HeadersInit = {};
@@ -28,9 +29,9 @@ serverSide(() => {
       expect(sc.getResponseCookie('session')).toBe('abc123');
     }));
 
-    test('setResponseCookie after consumeHeaders throws', withRLS(() => {
+    test('setResponseCookie after headers are locked throws', withRLS(() => {
       const sc = new ServerCookies(makeRequest());
-      sc.consumeHeaders();
+      getServerStash().headersLocked = true;
       expect(() => sc.setResponseCookie('session', 'abc123')).toThrow(
         'cannot set cookies after HTTP headers have been sent'
       );
@@ -39,7 +40,7 @@ serverSide(() => {
     test('consumeHeaders returns Headers with Set-Cookie values', withRLS(() => {
       const sc = new ServerCookies(makeRequest());
       sc.setResponseCookie('token', 'xyz', { path: '/', httpOnly: true });
-      const headers = sc.consumeHeaders();
+      const headers = sc.getResponseSetCookieHeaders();
       const setCookie = headers.get('Set-Cookie');
       expect(setCookie).toBeTruthy();
       expect(setCookie).toContain('token=xyz');

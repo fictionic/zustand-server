@@ -1,0 +1,31 @@
+{
+  "name": "@verso-js/adapter-bun",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime.d.ts",
+      "default": "./dist/runtime.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "bunx tsc --noEmit"
+  },
+  "devDependencies": {
+    "@verso-js/contract": "workspace:*",
+    "@types/bun": "latest",
+    "@types/node": "^25"
+  }
+}

@@ -6,32 +6,25 @@ import {runVerso} from "./runVerso";
 import {handleFailsafeTimeouts} from "./failsafe";
 import {compose, type RequestHandler} from "../../vendor/hattip/compose";
 import type {AdapterRequestContext} from "../../vendor/hattip/core";
-import type {ClientManifest} from "../../build/manifest";
+import type {ClientManifest, Serve, Server} from "@verso-js/contract";
 
 type ServerDeps = {
   resolver: Resolver;
   manifest: ClientManifest | null;
   serveInternal: RequestHandler;
-  serveStatic: RequestHandler;
   settings: ServerSettings;
+  allowLoopbackHosts?: boolean;
 };
 
-// TODO this type should probably live somewhere more centralized
-export type Serve = (request: Request) => Promise<Response>;
-
-export interface VersoServer {
-  serve: Serve;
-}
-
-export type CreateVersoServer = (deps: ServerDeps) => VersoServer;
+export type CreateVersoServer = (deps: ServerDeps) => Server;
 
 export const createVersoServer: CreateVersoServer = ({
   resolver,
   manifest,
   serveInternal,
-  serveStatic,
   settings,
-}): VersoServer => {
+  allowLoopbackHosts,
+}) => {
   let serve: Serve;
 
   // for loopback fetch() requests
@@ -41,14 +34,13 @@ export const createVersoServer: CreateVersoServer = ({
 
   const hattipHandler = compose(
     handleError,
-    resolvePublicRequest(settings),
+    resolvePublicRequest(settings, allowLoopbackHosts),
     serveInternal,
-    serveStatic,
     // failsafe runs after the bundle/static serving, because we
     // don't want to cut off the output stream of a raw file; we
     // know it's bounded
     handleFailsafeTimeouts(settings),
-    runVerso({resolver, manifest, loopback, settings}),
+    runVerso({ resolver, manifest, loopback, settings }),
   );
 
   serve = (req: Request) => runWithServerRLS(async () => {
@@ -70,7 +62,7 @@ export const createVersoServer: CreateVersoServer = ({
 
 const handleError: RequestHandler = (ctx) => {
   ctx.handleError = (error) => {
-    console.error("[verso] Unexpected error in handleRequest:", error);
+    console.error("[verso] Unexpected error", error);
     return new Response("Internal Server Error", {
       status: 500,
     });

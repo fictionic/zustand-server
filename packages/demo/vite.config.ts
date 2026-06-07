@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import { verso } from '@verso-js/verso/plugin';
+import { bun } from '@verso-js/adapter-bun';
 
 export default defineConfig(async ({ command }) => ({
   environments: {
@@ -20,7 +21,10 @@ export default defineConfig(async ({ command }) => ({
     minify: command === 'build',
     sourcemap: command === 'serve',
   },
+  publicDir: 'public',
   plugins: [
-    await verso(),
+    await verso({
+      adapter: bun(),
+    }),
   ],
 }));

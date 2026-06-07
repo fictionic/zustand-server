@@ -1,4 +1,4 @@
-import type {MaybePromise} from "../util/types";
+import type {MaybePromise} from "../../../util/promise";
 import {defineRouteHandler, type RouteHandler, type RouteHandlerDefinition, type RouteHandlerInit, type StandardizedRouteHandler} from "./RouteHandler";
 
 declare module './RouteHandler' {

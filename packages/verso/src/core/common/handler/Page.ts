@@ -1,5 +1,5 @@
 import type {ReactElement} from "react";
-import type {MaybePromise} from "../util/types";
+import type {MaybePromise} from "../../../util/promise";
 import type {
   LinkTag,
   MetaTag,

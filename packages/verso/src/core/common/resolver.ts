@@ -5,7 +5,7 @@ import {MiddlewareConfig} from "./handler/MiddlewareConfig";
 import type {AnyStandardizedHandler, RouteDirective, RouteHandlerDefinition, RouteHandlerType} from "./handler/RouteHandler";
 import {createCtx} from "./handler/RouteHandlerCtx";
 import {createRouter} from "./router";
-import type {MaybePromise} from "./util/types";
+import type {MaybePromise} from "../../util/promise";
 import {VersoRequest} from "./VersoRequest";
 
 const REDIRECT_STATUSES = [301, 302, 303, 307, 308];
@@ -34,7 +34,6 @@ export function createResolver(routes: RoutesMap, getRouteHandler: GetRouteHandl
       const url = new URL(req.url);
       const route = router.matchRoute(url.pathname + url.search, req.method);
       if (!route) {
-        console.log("[verso] no route match for request", req.url);
         return { kind: 'not-found' };
       }
       const { routeName } = route;
@@ -60,7 +59,7 @@ export function createResolver(routes: RoutesMap, getRouteHandler: GetRouteHandl
       const wantsRedirect = REDIRECT_STATUSES.includes(status);
       const useLocation = wantsRedirect && locationDirective;
       if (wantsRedirect && !locationDirective) {
-        console.warn("[verso] cannot redirect with empty location!");
+        console.warn("[verso] sending redirect with empty location");
       }
       const is2XX = ((status / 100)|0) === 2;
       const useHandler = handler.type === 'endpoint' || is2XX || hasDocument;

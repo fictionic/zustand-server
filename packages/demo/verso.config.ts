@@ -2,7 +2,6 @@ import { defineConfig } from '@verso-js/verso/config';
 
 export default defineConfig({
   server: {
-    staticDir: 'public',
     allowedHosts: ['localhost:3000'],
     fetchOrigin: 'loopback',
   },

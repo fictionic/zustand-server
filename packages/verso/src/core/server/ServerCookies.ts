@@ -1,5 +1,6 @@
 import { parseCookie, parseSetCookie, stringifyCookie, stringifySetCookie, type Cookies, type SetCookie } from 'cookie';
 import { getRLS } from '../common/RequestLocalStorage';
+import {getServerStash} from './stash';
 
 export type CookieOptions = Omit<SetCookie, 'name' | 'value'>;
 
@@ -8,12 +9,10 @@ const RLS = getRLS<{ current: ServerCookies }>();
 export class ServerCookies {
   private requestCookies: Cookies;
   private responseCookies: Map<string, { value: string; options?: CookieOptions }>;
-  private headersLocked: boolean;
 
   constructor(req: Request) {
     this.requestCookies = parseCookie(req.headers.get('cookie') ?? '');
     this.responseCookies = new Map();
-    this.headersLocked = false;
     RLS().current = this;
   }
 
@@ -26,13 +25,12 @@ export class ServerCookies {
   }
 
   setResponseCookie(name: string, value: string, options?: CookieOptions) {
-    if (this.headersLocked) {
-      throw new Error("cannot set cookies after HTTP headers have been sent");
-    }
+    throwIfHeadersLocked();
     this.responseCookies.set(name, { value, options });
   }
 
   setResponseSetCookieHeaders(headers: string[]) {
+    throwIfHeadersLocked();
     headers.forEach((header) => {
       const { name, value, ...options } = parseSetCookie(header);
       this.setResponseCookie(name, value ?? '', options);
@@ -43,8 +41,7 @@ export class ServerCookies {
     return this.responseCookies.get(name)?.value;
   }
 
-  consumeHeaders(): Headers {
-    this.headersLocked = true;
+  getResponseSetCookieHeaders(): Headers {
     const headers = new Headers();
     this.responseCookies.forEach(({ value, options }, name) => {
       headers.append('Set-Cookie', stringifySetCookie({ name, value, ...options }));
@@ -54,5 +51,11 @@ export class ServerCookies {
 
   static get(): ServerCookies | undefined {
     return RLS().current;
+  }
+}
+
+function throwIfHeadersLocked() {
+  if (getServerStash().headersLocked) {
+    throw new Error("cannot set cookies after HTTP headers have been sent");
   }
 }
