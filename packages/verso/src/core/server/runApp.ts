@@ -3,7 +3,7 @@ import {ServerCookies} from "./ServerCookies";
 import {Fetch} from "../common/fetch/Fetch";
 import type {ServerSettings} from "../../build/config";
 import type {Resolver} from "../common/resolver";
-import {getHandlerResponse} from "./response";
+import {dispatchHandler} from "./dispatchHandler";
 import {getServerStash} from "./stash";
 import {initAbort} from "../common/abort";
 import type {RequestHandler} from "../../vendor/hattip/compose";
@@ -79,9 +79,8 @@ export function runApp({
 
     const handlerHeaders = handler.getHeaders();
     concatHeaders(handlerHeaders);
-    const { getContentType, getBody } = getHandlerResponse(handler);
-    headers.append('Content-Type', getContentType());
-    const body = await getBody();
+    const { contentType, body } = dispatchHandler(handler);
+    headers.append('Content-Type', contentType);
     return new Response(body, {
       status,
       headers,

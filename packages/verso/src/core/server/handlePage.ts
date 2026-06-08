@@ -17,7 +17,7 @@ import {
   renderRootToString,
 } from "./renderElement";
 import type {CacheableRequest, CacheEntryData} from "../common/fetch/cache";
-import type {HandlerResponse} from "./response";
+import type {HandlerResponse} from "./dispatchHandler";
 import {getServerStash} from "./stash";
 import {PageElementProcessor} from "../common/PageElementProcessor";
 import {renderToString} from "react-dom/server";
@@ -183,8 +183,8 @@ export function handlePage(page: StandardizedPage): HandlerResponse {
   });
 
   return {
-   getContentType: () => 'text/html; charset=utf-8',
-   getBody: () => readable,
+   contentType: 'text/html; charset=utf-8',
+   body: readable,
   };
 };
 

@@ -1,14 +1,13 @@
 import type {AnyStandardizedHandler} from "../common/handler/RouteHandler";
-import type {MaybePromise} from "../../util/promise";
 import {handleEndpoint} from "./handleEndpoint";
 import {handlePage} from "./handlePage";
 
 export type HandlerResponse = {
-  getContentType: () => string;
-  getBody: () => MaybePromise<BodyInit>;
+  contentType: string;
+  body: BodyInit;
 };
 
-export function getHandlerResponse(handler: AnyStandardizedHandler): HandlerResponse {
+export function dispatchHandler(handler: AnyStandardizedHandler): HandlerResponse {
   switch(handler.type) {
     case 'page':
       return handlePage(handler);

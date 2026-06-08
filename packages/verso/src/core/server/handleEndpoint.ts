@@ -1,5 +1,5 @@
 import type {StandardizedEndpoint} from "../common/handler/Endpoint";
-import type {HandlerResponse} from "./response";
+import type {HandlerResponse} from "./dispatchHandler";
 
 export function handleEndpoint(endpoint: StandardizedEndpoint): HandlerResponse {
   const { readable, writable } = new TransformStream();
@@ -18,7 +18,7 @@ export function handleEndpoint(endpoint: StandardizedEndpoint): HandlerResponse 
     }
   })();
   return {
-    getContentType: () => endpoint.getContentType(),
-    getBody: () => readable,
+    contentType: endpoint.getContentType(),
+    body: readable,
   };
 }
