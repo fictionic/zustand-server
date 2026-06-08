@@ -21,7 +21,7 @@
       "default": "./dist/testing-config.js"
     },
     "./testing/setup": {
-      "default": "./dist/testing-setup.js",
+      "default": "./dist/testing-setup.js"
     },
     "./plugin": {
       "types": "./dist/plugin.d.ts",
