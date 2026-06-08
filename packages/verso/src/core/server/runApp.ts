@@ -8,19 +8,19 @@ import {getServerStash} from "./stash";
 import {initAbort} from "../common/abort";
 import type {RequestHandler} from "../../vendor/hattip/compose";
 
-type RunVersoOpts = {
+type Opts = {
   resolver: Resolver,
   manifest: ClientManifest | null, // null in dev
   loopback: Serve,
   settings: ServerSettings
 };
 
-export function runVerso({
+export function runApp({
   resolver,
   manifest,
   loopback,
   settings,
-}: RunVersoOpts): RequestHandler {
+}: Opts): RequestHandler {
   return async (ctx) => {
     const req = ctx.request;
 
