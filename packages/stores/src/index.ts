@@ -13,4 +13,3 @@ export { defineIsoStore } from './core/define';
 export { IsoStoreProvider } from './IsoStoreProvider';
 export { default as StoreRoot } from './StoreRoot';
 export { asSingleton } from './singleton';
-export { defineAsyncAtom } from './atom';
