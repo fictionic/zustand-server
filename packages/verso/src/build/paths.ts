@@ -45,6 +45,6 @@ export function getBuildPaths(): BuildPaths {
 // so the dependency is explicit.
 export const VERSO_ENTRY = {
   createServerFactory: 'build.js',
-  createVersoServer: 'server.js',
+  composeServer: 'server.js',
   bootstrapClient: 'client.js',
 };

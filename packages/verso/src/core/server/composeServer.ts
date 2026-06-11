@@ -16,9 +16,9 @@ type ServerDeps = {
   allowLoopbackHosts?: boolean;
 };
 
-export type CreateVersoServer = (deps: ServerDeps) => Server;
+export type ComposeServer = (deps: ServerDeps) => Server;
 
-export const createVersoServer: CreateVersoServer = ({
+export const composeServer: ComposeServer = ({
   resolver,
   manifest,
   serveInternal,

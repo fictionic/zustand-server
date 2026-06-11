@@ -6,7 +6,7 @@ import {createViteBundleLoader, makeAsyncScript} from "./ViteBundleLoader";
 import {createResolver, type GetRouteHandler} from "../core/common/resolver";
 import {CLIENT_BUNDLE_URL_PREFIX, clientAssetUrlToPath} from "./paths";
 import type {RequestHandler} from "../vendor/hattip/compose";
-import {createVersoServer} from "../core/server/createVersoServer";
+import {composeServer} from "../core/server/composeServer";
 import type {Server, ServerFactory, ServerRuntime} from "@verso-js/contract";
 
 export type {ServerFactory, ServerRuntime} from "@verso-js/contract";
@@ -71,7 +71,7 @@ export function createServerFactory({
     const { allowLoopbackHosts } = runtime;
 
     // now we can wire it all together
-    return createVersoServer({
+    return composeServer({
       resolver,
       manifest,
       serveInternal: serveBundles,

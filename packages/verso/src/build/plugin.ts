@@ -24,7 +24,7 @@ import { createJiti, type Jiti } from 'jiti';
 import type { MiddlewareDefinition } from '../core/common/handler/Middleware';
 import {createResolver} from '../core/common/resolver';
 import type {RequestHandler} from '../vendor/hattip/compose';
-import type {CreateVersoServer} from '../core/server/createVersoServer';
+import type {ComposeServer} from '../core/server/composeServer';
 import {cpSync, existsSync, rmSync} from 'node:fs';
 import { toNodeRequestHandler, createVersoNodeHandler } from "@verso-js/node-runtime";
 import { node } from "@verso-js/adapter-node";
@@ -425,10 +425,10 @@ export default async function verso(_opts?: Partial<PluginOptions>): Promise<Plu
 
         const serverSettings = fillServerSettings(versoConfig.server);
 
-        const serverEntryPath = path.resolve(VERSO_DIST_ROOT, VERSO_ENTRY.createVersoServer);
-        const createVersoServer = await importDefaultWithVite<CreateVersoServer>(vite, serverEntryPath);
+        const serverEntryPath = path.resolve(VERSO_DIST_ROOT, VERSO_ENTRY.composeServer);
+        const composeServer = await importDefaultWithVite<ComposeServer>(vite, serverEntryPath);
 
-        const versoServer = createVersoServer({
+        const versoServer = composeServer({
           resolver,
           manifest: null,
           serveInternal: serveClientStylesheets,

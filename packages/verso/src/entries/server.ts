@@ -1,2 +1,2 @@
-import { createVersoServer } from '../core/server/createVersoServer';
-export default createVersoServer;
+import { composeServer } from '../core/server/composeServer';
+export default composeServer;
