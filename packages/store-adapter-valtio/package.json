@@ -19,14 +19,14 @@
     "dev": "tsup --watch",
     "typecheck": "bunx tsc --noEmit"
   },
-  "dependencies": {
-    "@verso-js/stores": "workspace:*"
-  },
+  "dependencies": {},
   "devDependencies": {
+    "@verso-js/stores": "workspace:*",
     "@types/react": "^19.2.14",
     "valtio": "^2.3.1"
   },
   "peerDependencies": {
+    "@verso-js/stores": "workspace:*",
     "react": "^19.2.4",
     "valtio": "^2.3.1"
   }

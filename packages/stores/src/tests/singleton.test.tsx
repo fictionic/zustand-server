@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, expect, test } from "vitest";
 import { act, cleanup, render, screen, waitFor as waitForDom } from "@testing-library/react";
-import { defineZustandIsoStore } from "@verso-js/store-adapter-zustand";
+import { defineTestIsoStore } from "./helpers/testAdapter";
 import { IsoStoreProvider } from "../IsoStoreProvider";
 import { asSingleton } from "../singleton";
 import {withRLS} from "@verso-js/verso/testing";
@@ -14,7 +14,7 @@ afterEach(() => {
 
 test("createStore creates a store instance", withRLS(() => {
   const Store = asSingleton(
-    defineZustandIsoStore<{}, { count: number }>(
+    defineTestIsoStore<{}, { count: number }>(
       () => () => ({ count: 42 })
     )
   );
@@ -26,7 +26,7 @@ test("createStore creates a store instance", withRLS(() => {
 
 test("createStore throws on second call", withRLS(() => {
   const Store = asSingleton(
-    defineZustandIsoStore<{}, { x: number }>(
+    defineTestIsoStore<{}, { x: number }>(
       () => () => ({ x: 1 })
     )
   );
@@ -39,7 +39,7 @@ test("createStore throws on second call", withRLS(() => {
 
 test("hooks access store through provider context", withRLS(() => {
   const Store = asSingleton(
-    defineZustandIsoStore<{}, { name: string }>(
+    defineTestIsoStore<{}, { name: string }>(
       () => () => ({ name: "Alice" })
     )
   );
@@ -64,7 +64,7 @@ test("hooks access store through provider context", withRLS(() => {
 
 test("useClientHooks throws if no singleton has been created", withRLS(() => {
   const Store = asSingleton(
-    defineZustandIsoStore<{}, { x: number }>(
+    defineTestIsoStore<{}, { x: number }>(
       () => () => ({ x: 1 })
     )
   );
@@ -87,7 +87,7 @@ test("useClientHooks throws if no singleton has been created", withRLS(() => {
 test("useClientHooks: returns not ready initially, then ready after whenReady", withRLS(async () => {
   let resolveName!: (v: string) => void;
   const Store = asSingleton(
-    defineZustandIsoStore<{}, { name: string }>(
+    defineTestIsoStore<{}, { name: string }>(
       (_, { setAsync }) => () => ({
         ...setAsync("name", new Promise<string>(res => { resolveName = res; })),
       })
@@ -111,7 +111,7 @@ test("useClientHooks: returns not ready initially, then ready after whenReady", 
 
 test("useClientHooks: works without provider (cross-root access)", withRLS(async () => {
   const Store = asSingleton(
-    defineZustandIsoStore<{}, { value: string }>(
+    defineTestIsoStore<{}, { value: string }>(
       () => () => ({ value: "hello" })
     )
   );
@@ -137,7 +137,7 @@ test("message broadcasts to mounted singleton instances", withRLS(async () => {
   type Msg = { type: "rename"; name: string };
 
   const Store = asSingleton(
-    defineZustandIsoStore<{}, { name: string }, Msg>(
+    defineTestIsoStore<{}, { name: string }, Msg>(
       (_, { onMessage }) => (set) => {
         onMessage((msg) => {
           if (msg.type === "rename") set({ name: msg.name });

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, expect, test } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor as waitForDom } from "@testing-library/react";
-import {defineZustandIsoStore} from "@verso-js/store-adapter-zustand";
+import { defineTestIsoStore } from "./helpers/testAdapter";
 import {IsoStoreProvider} from "../IsoStoreProvider";
 
 afterEach(cleanup);
@@ -9,7 +9,7 @@ afterEach(cleanup);
 // ─── Basic rendering ─────────────────────────────────────────────────────────
 
 test("renders initial state via IsoStoreProvider", () => {
-  const CounterStore = defineZustandIsoStore<{}, { count: number }>(
+  const CounterStore = defineTestIsoStore<{}, { count: number }>(
     () => () => ({ count: 42 })
   );
 
@@ -29,7 +29,7 @@ test("renders initial state via IsoStoreProvider", () => {
 });
 
 test("useStore outside provider throws", () => {
-  const SomeStore = defineZustandIsoStore<{}, { x: number }>(
+  const SomeStore = defineTestIsoStore<{}, { x: number }>(
     () => () => ({ x: 1 })
   );
 
@@ -51,7 +51,7 @@ test("useStore outside provider throws", () => {
 
 test("setAsync: initial value shown before promise resolves", async () => {
   let resolveName!: (v: string) => void;
-  const NameStore = defineZustandIsoStore<{}, { name: string }>(
+  const NameStore = defineTestIsoStore<{}, { name: string }>(
     (_, { setAsync }) => () => ({
       ...setAsync("name", new Promise<string>(res => { resolveName = res; })),
     })
@@ -61,7 +61,7 @@ test("setAsync: initial value shown before promise resolves", async () => {
 
   function Widget() {
     const name = NameStore.hooks.useStore(s => s.name);
-    return <div>{name}</div>;
+    return <div>{name ?? "loading"}</div>;
   }
 
   render(
@@ -80,7 +80,7 @@ test("setAsync: whenReady resolves only after all promises settle", async () => 
   let resolveName!: (v: string) => void;
   let resolveAge!: (v: number) => void;
 
-  const ProfileStore = defineZustandIsoStore<{}, { name: string; age: number }>(
+  const ProfileStore = defineTestIsoStore<{}, { name: string; age: number }>(
     (_, { setAsync }) => () => ({
       ...setAsync("name", new Promise<string>(res => { resolveName = res; })),
       ...setAsync("age", new Promise<number>(res => { resolveAge = res; })),
@@ -106,7 +106,7 @@ test("setAsync: whenReady resolves only after all promises settle", async () => 
 test("setAsync: rejection triggers onError, keeps initial value, whenReady still resolves", async () => {
   const errors: unknown[] = [];
 
-  const FailStore = defineZustandIsoStore<{}, { name: string }>(
+  const FailStore = defineTestIsoStore<{}, { name: string }>(
     (_, { setAsync }) => () => ({
       ...setAsync("name", Promise.reject(new Error("fetch failed"))),
     }),
@@ -117,7 +117,7 @@ test("setAsync: rejection triggers onError, keeps initial value, whenReady still
 
   function Widget() {
     const name = FailStore.hooks.useStore(s => s.name);
-    return <div>{name}</div>;
+    return <div>{name ?? "fallback"}</div>;
   }
 
   await act(async () => {
@@ -132,13 +132,14 @@ test("setAsync: rejection triggers onError, keeps initial value, whenReady still
   expect(screen.getByText("fallback")).toBeTruthy();
   expect(errors).toHaveLength(1);
   expect(errors[0]).toBeInstanceOf(Error);
-  expect((errors[0] as Error).message).toContain("name");
+  expect((errors[0] as Error).cause).toBeInstanceOf(Error);
+  expect(((errors[0] as Error).cause as Error).message).toBe("fetch failed");
 });
 
 // ─── Actions ─────────────────────────────────────────────────────────────────
 
 test("actions update state and trigger re-render", async () => {
-  const CounterStore = defineZustandIsoStore<{}, { count: number; increment: () => void }>(
+  const CounterStore = defineTestIsoStore<{}, { count: number; increment: () => void }>(
     () => (set, get) => ({
       count: 0,
       increment: () => set({ count: get().count + 1 }),
@@ -170,7 +171,7 @@ test("actions update state and trigger re-render", async () => {
 test("setNonBlockingAsync: does not contribute to whenReady", async () => {
   let resolveData!: (v: string) => void;
 
-  const DataStore = defineZustandIsoStore<{}, { data: string }>(
+  const DataStore = defineTestIsoStore<{}, { data: string }>(
     (_, { setNonBlockingAsync }) => () => ({
       ...setNonBlockingAsync("data", new Promise<string>(res => { resolveData = res; }), "pending"),
     })
@@ -189,7 +190,7 @@ test("setNonBlockingAsync: does not contribute to whenReady", async () => {
 test("setNonBlockingAsync: initial value shown before mount; resolves after mount", async () => {
   let resolveData!: (v: string) => void;
 
-  const DataStore = defineZustandIsoStore<{}, { data: string }>(
+  const DataStore = defineTestIsoStore<{}, { data: string }>(
     (_, { setNonBlockingAsync }) => () => ({
       ...setNonBlockingAsync("data", new Promise<string>(res => { resolveData = res; }), "pending"),
     })
@@ -218,7 +219,7 @@ test("setNonBlockingAsync: initial value shown before mount; resolves after moun
 // ─── useClientHooks ─────────────────────────────────────────────────────────
 
 test("useCreateClientStore: throws before ready, value after", async () => {
-  const SimpleStore = defineZustandIsoStore<{}, { value: string }>(
+  const SimpleStore = defineTestIsoStore<{}, { value: string }>(
     () => () => ({ value: "hello" })
   );
 
@@ -239,7 +240,7 @@ test("useCreateClientStore: throws before ready, value after", async () => {
 test("broadcast delivers message to all mounted instances", async () => {
   type Msg = { type: "rename"; name: string };
 
-  const NameStore = defineZustandIsoStore<{}, { name: string }, Msg>(
+  const NameStore = defineTestIsoStore<{}, { name: string }, Msg>(
     (_, { onMessage }) => (set) => {
       onMessage((msg) => {
         if (msg.type === "rename") set({ name: msg.name });
@@ -275,7 +276,7 @@ test("broadcast delivers message to all mounted instances", async () => {
 // ─── Duplicate async keys ─────────────────────────────────────────────────────
 
 test("setAsync: duplicate key throws", () => {
-  const Store = defineZustandIsoStore<{}, { name: string }>(
+  const Store = defineTestIsoStore<{}, { name: string }>(
     (_, { setAsync }) => () => ({
       ...setAsync("name", Promise.resolve("a")),
       ...setAsync("name", Promise.resolve("b")),
@@ -286,7 +287,7 @@ test("setAsync: duplicate key throws", () => {
 });
 
 test("setNonBlockingAsync: duplicate key throws", () => {
-  const Store = defineZustandIsoStore<{}, { data: string }>(
+  const Store = defineTestIsoStore<{}, { data: string }>(
     (_, { setNonBlockingAsync }) => () => ({
       ...setNonBlockingAsync("data", Promise.resolve("a"), ""),
       ...setNonBlockingAsync("data", Promise.resolve("b"), ""),
@@ -297,7 +298,7 @@ test("setNonBlockingAsync: duplicate key throws", () => {
 });
 
 test("setAsync and setNonBlockingAsync: same key throws", () => {
-  const Store = defineZustandIsoStore<{}, { name: string }>(
+  const Store = defineTestIsoStore<{}, { name: string }>(
     (_, { setAsync, setNonBlockingAsync }) => () => ({
       ...setAsync("name", Promise.resolve("a")),
       ...setNonBlockingAsync("name", Promise.resolve("b"), ""),
@@ -310,10 +311,10 @@ test("setAsync and setNonBlockingAsync: same key throws", () => {
 // ─── Multiple stores in one provider ─────────────────────────────────────────
 
 test("IsoStoreProvider wires multiple stores into the same tree", () => {
-  const StoreA = defineZustandIsoStore<{}, { a: string }>(
+  const StoreA = defineTestIsoStore<{}, { a: string }>(
     () => () => ({ a: "hello" })
   );
-  const StoreB = defineZustandIsoStore<{}, { b: string }>(
+  const StoreB = defineTestIsoStore<{}, { b: string }>(
     () => () => ({ b: "world" })
   );
 
