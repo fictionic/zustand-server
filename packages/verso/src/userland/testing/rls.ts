@@ -10,12 +10,14 @@ export function withRLS<R, P extends MaybePromise<R>>(fn: () => P): () => P {
     let result: P;
     try {
       result = fn();
-      if (result instanceof Promise) {
-        return result.finally(stopClientRLS) as P;
-      }
-      return result;
-    } finally {
+    } catch (e) {
       stopClientRLS();
+      throw e;
     }
+    if (result instanceof Promise) {
+      return result.finally(stopClientRLS) as P;
+    }
+    stopClientRLS();
+    return result;
   };
 }
