@@ -25,14 +25,15 @@ export type NavigationState = |
   };
 
 export class ClientNavigationManager {
-  private dfd: PromiseWithResolvers<void> | null;
+  private waitForPendingDfd: PromiseWithResolvers<void>;
+  private waitForIdleDfd: PromiseWithResolvers<void>;
   private taskRunner: TaskRunner;
   private listeners: Set<() => void>;
   private state: NavigationState;
+  private hydrating: boolean;
   private resolutionDepth: number = 1; // doesn't need RLS because only one navigation runs at a time
 
   constructor(private resolver: Resolver) {
-    this.dfd = null;
     this.taskRunner = new TaskRunner({
       onActive: () => {
         this.markNavigationStart();
@@ -45,11 +46,22 @@ export class ClientNavigationManager {
     this.state = {
       status: 'pending',
       requestedUrl: window.location.href,
-      // ^this might not be the right url but no one should be reading our state before we start hydration anyway
+      // ^this might not be the right url but no one should be reading our
+      // state before we start hydration anyway
     };
-    window.__waitForVersoNavigation = () => {
+    this.hydrating = true;
+    this.waitForPendingDfd = Promise.withResolvers();
+    this.waitForPendingDfd.resolve();
+    this.waitForIdleDfd = Promise.withResolvers();
+    window.__versoNavigation = {
       // for playwright tests, etc
-      return this.dfd?.promise ?? Promise.resolve();
+      waitForIdle: async () => {
+        await this.waitForIdleDfd.promise;
+      },
+      waitForNextIdle: async () => {
+        await this.waitForPendingDfd.promise;
+        await this.waitForIdleDfd.promise;
+      },
     };
   }
 
@@ -170,20 +182,20 @@ export class ClientNavigationManager {
   }
 
   private markNavigationStart() {
-    if (this.dfd) {
-      console.warn("[verso] navigation already started");
+    this.waitForPendingDfd.resolve();
+    if (this.hydrating) {
+      // we already primed the idle dfd in the constructor
       return;
     }
-    this.dfd = Promise.withResolvers();
+    this.waitForIdleDfd = Promise.withResolvers();
   }
 
   private markNavigationEnd() {
-    if (!this.dfd) {
-      console.warn("[verso] no navigation in progress");
-      return;
+    this.waitForIdleDfd.resolve();
+    this.waitForPendingDfd = Promise.withResolvers();
+    if (this.hydrating) {
+      this.hydrating = false;
     }
-    this.dfd.resolve();
-    this.dfd = null;
   }
 
 }
