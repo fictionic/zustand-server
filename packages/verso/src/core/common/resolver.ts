@@ -7,17 +7,21 @@ import {createCtx} from "./handler/RouteHandlerCtx";
 import {createRouter} from "./router";
 import type {MaybePromise} from "../../util/promise";
 import {VersoRequest} from "./VersoRequest";
+import {isRedirectStatus} from "./redirect";
 
-const REDIRECT_STATUSES = [301, 302, 303, 307, 308];
+// Statuses that must not carry a message body per HTTP (RFC 9110): 1xx, 204, 304.
+function statusForbidsBody(code: number): boolean {
+  return (code >= 100 && code < 200) || code === 204 || code === 304;
+}
 
 export type Resolution = |
   { kind: 'not-found' } |
   { kind: 'error' } |
   {
-    kind: 'directive';
+    kind: 'response';
     routeName: string;
-    status: number;
-    location?: string;
+    statusCode: number;
+    redirectLocation?: string;
     handler?: AnyStandardizedHandler;
   };
 
@@ -54,22 +58,43 @@ export function createResolver(routes: RoutesMap, getRouteHandler: GetRouteHandl
         console.error('[verso] error during getRouteDirective', err);
         return { kind: 'error' };
       }
-      const { status, location: locationDirective, hasDocument } = directive;
-      // (just avoiding creating a variable named 'location')
-      const wantsRedirect = REDIRECT_STATUSES.includes(status);
-      const useLocation = wantsRedirect && locationDirective;
-      if (wantsRedirect && !locationDirective) {
-        console.warn("[verso] sending redirect with empty location");
+      switch (directive.kind) {
+        case 'ok':
+          return {
+            kind: 'response',
+            routeName: route.routeName,
+            statusCode: 200,
+            handler: chain,
+          }
+        case 'status': {
+          const { code, hasBody } = directive;
+          if (isRedirectStatus(code)) {
+            console.warn(`[verso] status directive used redirect code ${code}; use { kind: 'redirect', location } instead. No Location header will be sent.`);
+          }
+          let useHandler = hasBody;
+          if (useHandler && statusForbidsBody(code)) {
+            console.warn(`[verso] status ${code} cannot carry a body; ignoring hasBody: true`);
+            useHandler = false;
+          }
+          return {
+            kind: 'response',
+            routeName: route.routeName,
+            statusCode: code,
+            handler: useHandler ? chain : undefined,
+          };
+        }
+        case 'redirect': {
+          const { code, location } = directive;
+          return {
+            kind: 'response',
+            routeName: route.routeName,
+            statusCode: code,
+            redirectLocation: location,
+          };
+        }
+        default:
+          throw new Error(`unexpected directive kind ${directive satisfies never}`);
       }
-      const is2XX = ((status / 100)|0) === 2;
-      const useHandler = handler.type === 'endpoint' || is2XX || hasDocument;
-      return {
-        kind: 'directive',
-        routeName: route.routeName,
-        status,
-        location: useLocation ? locationDirective : undefined,
-        handler: useHandler ? chain : undefined,
-      };
     },
   };
 }

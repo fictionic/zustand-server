@@ -2,27 +2,32 @@ import type {BaseConfig} from "./MiddlewareConfig";
 import type {MiddlewareDefinition, Scope} from "./Middleware";
 import type {RouteHandlerCtx} from "./RouteHandlerCtx";
 import type {MaybePromise} from "../../../util/promise";
+import type {RedirectStatusCode} from "../redirect";
 
 export interface HandlerRegistry {}
 
 export type RouteHandlerType = keyof HandlerRegistry;
 
-export type RouteDirective = {
-  status: number;
-  location?: string;
-  hasDocument?: boolean;
+export type RouteDirective = |
+  { kind: 'ok' } |
+  {
+    kind: 'status',
+    code: number;
+    hasBody: boolean;
+  } |
+  {
+    kind: 'redirect',
+    code: RedirectStatusCode;
+    location: string;
+  };
   // TODO: proxyRoute?: string;
-};
-
-export interface SharedRequiredMethods {
-  getRouteDirective(): MaybePromise<RouteDirective>;
-};
 
 export interface SharedOptionalMethods {
+  getRouteDirective(): MaybePromise<RouteDirective>;
   getHeaders(): Headers;
 };
 
-export interface SharedMethods extends SharedRequiredMethods, Partial<SharedOptionalMethods> {};
+export interface SharedMethods extends Partial<SharedOptionalMethods> {};
 
 export interface SharedHooks {
   setConfigValues(): Partial<BaseConfig>;
@@ -80,7 +85,7 @@ export type StandardizedRouteHandler<
   T extends RouteHandlerType,
   OptionalMethods extends {},
   RequiredMethods extends {},
-> = { type: T } & SharedOptionalMethods & SharedRequiredMethods & OptionalMethods & RequiredMethods;
+> = { type: T } & SharedOptionalMethods & OptionalMethods & RequiredMethods;
 
 export type StandardizedFor<T extends RouteHandlerType> =
   StandardizedRouteHandler<T, HandlerRegistry[T]['optional'], HandlerRegistry[T]['required']>;
@@ -99,7 +104,6 @@ function makeStandardizer<T extends RouteHandlerType, OptionalMethods extends {}
   return (handler: RouteHandler<T, OptionalMethods, RequiredMethods>) => {
     const methodNames = [
       ...Object.keys(SHARED_OPTIONAL_METHOD_DEFAULTS),
-      ...SHARED_REQUIRED_METHOD_NAMES,
       ...Object.keys(defaults),
       ...requiredNames,
     ];
@@ -117,8 +121,7 @@ function makeStandardizer<T extends RouteHandlerType, OptionalMethods extends {}
   }
 }
 
-const SHARED_REQUIRED_METHOD_NAMES: (keyof SharedRequiredMethods)[] = ['getRouteDirective'];
-
 const SHARED_OPTIONAL_METHOD_DEFAULTS: SharedOptionalMethods = {
+  getRouteDirective: () => ({ kind: 'ok' }),
   getHeaders: () => new Headers(),
 };

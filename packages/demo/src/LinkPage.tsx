@@ -8,7 +8,7 @@ export default definePage(() => ({
   },
 
   getRouteDirective() {
-    return { status: 200 };
+    return { kind: 'ok' };
   },
 
   getElements() {

@@ -8,7 +8,7 @@ export default defineEndpoint(({ getRoute }) => {
     async getRouteDirective() {
       userId = Number(getRoute().params['userId']);
       await delay(cookieLatency('theme', 400));
-      return { status: 200 };
+      return { kind: 'ok' };
     },
 
     getContentType() {

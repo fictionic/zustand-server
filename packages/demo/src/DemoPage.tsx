@@ -25,7 +25,7 @@ export default definePage(() => {
       theme1 = ThemeStore.createStore({ userId: 1 });
       activity = ActivityStore.createStore({});
       broadcast = ProfileStore.createStore({ userId: 3 });
-      return { status: 200 };
+      return { kind: 'ok' };
     },
 
     getTitle() {

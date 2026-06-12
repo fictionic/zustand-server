@@ -48,21 +48,21 @@ export function runApp({
         return; // passthrough to fallback hattip 404 handler
       case 'error':
         throw new Error('[verso] resolution error');
-      case 'directive':
+      case 'response':
         break;
       default:
         throw new Error('unexpected resolution result', resolution satisfies never);
     }
 
-    const { status, location: locationDirective, handler, routeName } = resolution;
+    const { statusCode, redirectLocation: locationHeader, handler, routeName } = resolution;
 
     getServerStash().routeName = routeName;
 
     const cookieHeaders = cookies.getResponseSetCookieHeaders();
     concatHeaders(cookieHeaders);
 
-    if (locationDirective) {
-      headers.append('Location', locationDirective);
+    if (locationHeader) {
+      headers.append('Location', locationHeader);
     }
 
     // response headers are locked in. any userland attempts to update them (either
@@ -72,7 +72,7 @@ export function runApp({
     if (!handler) {
       // non-2XX response
       return new Response(null, {
-        status,
+        status: statusCode,
         headers,
       });
     }
@@ -82,7 +82,7 @@ export function runApp({
     const { contentType, body } = dispatchHandler(handler);
     headers.append('Content-Type', contentType);
     return new Response(body, {
-      status,
+      status: statusCode,
       headers,
     });
   }
