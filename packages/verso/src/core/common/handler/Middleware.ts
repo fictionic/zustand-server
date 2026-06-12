@@ -65,7 +65,7 @@ export function defineMiddleware<S extends Scope, C extends BaseConfig>(
 }
 
 type Chained<T> = {
-  [K in keyof T]: T[K] extends (...args: any[]) => infer R
+  [K in keyof T]: NonNullable<T[K]> extends (...args: any[]) => infer R
     ? (next: () => R) => R
     : T[K];
 };
