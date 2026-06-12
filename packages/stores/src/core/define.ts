@@ -71,6 +71,7 @@ export function defineIsoStore<Opts, State extends object, Message, NativeStoreI
         if (asyncKeys.has(key)) {
           throw new Error(`duplicate async key '${String(key)}'`);
         }
+        asyncKeys.add(key);
         trackPendingValue(
           pendingValues,
           promise,
