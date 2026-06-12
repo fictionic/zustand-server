@@ -26,7 +26,8 @@ export default defineConfig([
       'testing-config': 'src/entries/testing-config.ts',
       'testing-setup': 'src/entries/testing-setup.ts',
       // these are needed for the userland build
-      build: `src/entries/build.ts`,
+      dev: 'src/entries/dev.ts',
+      build: 'src/entries/build.ts',
       server: 'src/entries/server.ts',
       client: 'src/entries/client.ts',
     },

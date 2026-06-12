@@ -44,6 +44,7 @@ export function getBuildPaths(): BuildPaths {
 // tsup config, which cannot import from here. just listing them here
 // so the dependency is explicit.
 export const VERSO_ENTRY = {
+  devServerStuff: 'dev.js',
   createServerFactory: 'build.js',
   composeServer: 'server.js',
   bootstrapClient: 'client.js',

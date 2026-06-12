@@ -18,17 +18,17 @@ import {
   getBuildPaths,
 } from './paths';
 import { DEV_ROUTE_CSS_PATH } from '../core/common/constants';
-import { createViteBundleLoader, makeAsyncScript } from './ViteBundleLoader';
 import { createEntrypointGenerator, type EntrypointGenerator } from './entrypoint';
 import { createJiti, type Jiti } from 'jiti';
 import type { MiddlewareDefinition } from '../core/common/handler/Middleware';
-import {createResolver} from '../core/common/resolver';
 import type {RequestHandler} from '../vendor/hattip/compose';
 import type {ComposeServer} from '../core/server/composeServer';
 import {cpSync, existsSync, rmSync} from 'node:fs';
 import { toNodeRequestHandler, createVersoNodeHandler } from "@verso-js/node-runtime";
 import { node } from "@verso-js/adapter-node";
 import type {BuildAdapter, ClientManifest} from '@verso-js/contract';
+import {makeAsyncScript} from './ViteBundleLoader';
+import type {DevServerStuff} from '../entries/dev';
 
 const VERSO_CONFIG_FILE_NAME = 'verso.config.ts';
 
@@ -39,12 +39,6 @@ const CLIENT_ENTRY_RESOLVED_ID = '\0' + CLIENT_ENTRY_VIRTUAL_ID;
 
 const SERVER_ENTRY_VIRTUAL_ID = 'virtual:verso/server-entry';
 const SERVER_ENTRY_RESOLVED_ID = '\0' + SERVER_ENTRY_VIRTUAL_ID;
-
-const VERSO_PACKAGES = [
-  // packages that use IS_SERVER or RequestLocalStorage
-  '@verso-js/verso',
-  '@verso-js/stores',
-];
 
 export type PluginOptions = {
   configPath: string
@@ -165,7 +159,12 @@ export default async function verso(_opts?: Partial<PluginOptions>): Promise<Plu
                 'globalThis.IS_SERVER': true,
               },
               resolve: {
-                noExternal: [...VERSO_PACKAGES],
+                noExternal: [
+                  // packages that use IS_SERVER or RequestLocalStorage
+                  // need to be within the same module graph as userland code
+                  '@verso-js/verso',
+                  '@verso-js/stores',
+                ],
               },
               build: {
                 manifest: false,
@@ -366,13 +365,17 @@ export default async function verso(_opts?: Partial<PluginOptions>): Promise<Plu
           (id) => vite.environments.ssr.pluginContainer.resolveId(id),
         );
 
+        // have to import verso core through vite, because of RLS
+        const devServerStuffEntryPath = path.resolve(VERSO_DIST_ROOT, VERSO_ENTRY.devServerStuff);
+        const { createViteBundleLoader, Resolver } = await importDefaultWithVite<DevServerStuff>(vite, devServerStuffEntryPath);
+
+        const entryUrl = `/@id/__x00__${CLIENT_ENTRY_VIRTUAL_ID}`;
+        const entryScript = makeAsyncScript(entryUrl); // (except this import is fine)
+
         const viteDevScripts: Script[] = [
           { text: react.preambleCode.replace('__BASE__', '/'), type: 'module' }, // vite react hmr preamble (inline)
           { src: '/@vite/client', type: 'module' }, // vite dev client
         ];
-
-        const entryUrl = `/@id/__x00__${CLIENT_ENTRY_VIRTUAL_ID}`;
-        const entryScript = makeAsyncScript(entryUrl);
 
         const bundleLoader = createViteBundleLoader({
           getGlobalScripts: () => [...viteDevScripts, entryScript],
@@ -400,7 +403,7 @@ export default async function verso(_opts?: Partial<PluginOptions>): Promise<Plu
 
         const { routes } = versoConfig;
 
-        const resolver = createResolver(routes, getRouteHandler, globalMiddleware);
+        const resolver = new Resolver(routes, getRouteHandler, globalMiddleware);
 
         const serveClientStylesheets: RequestHandler = async (ctx) => {
           // Dev-only endpoint: return the CSS stylesheet list for a route, so the

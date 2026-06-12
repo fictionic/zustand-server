@@ -3,13 +3,11 @@ import type {MiddlewareDefinition} from "../entries";
 import type {RoutesMap, ServerSettings} from "./config";
 import {makeLinkStylesheet, type Script, type Stylesheet} from "../core/common/handler/Page";
 import {createViteBundleLoader, makeAsyncScript} from "./ViteBundleLoader";
-import {createResolver, type GetRouteHandler} from "../core/common/resolver";
+import {Resolver, type GetRouteHandler} from "../core/common/resolver";
 import {CLIENT_BUNDLE_URL_PREFIX, clientAssetUrlToPath} from "./paths";
 import type {RequestHandler} from "../vendor/hattip/compose";
 import {composeServer} from "../core/server/composeServer";
 import type {Server, ServerFactory, ServerRuntime} from "@verso-js/contract";
-
-export type {ServerFactory, ServerRuntime} from "@verso-js/contract";
 
 type CreateServerFactoryOpts = {
   routes: RoutesMap,
@@ -47,7 +45,7 @@ export function createServerFactory({
     const systemMiddleware = [bundleLoader];
     const globalMiddleware = [...systemMiddleware, ...middleware];
     const getRouteHandler: GetRouteHandler = (routeName: string) => routeHandlers[routeName] ?? null;
-    const resolver = createResolver(routes, getRouteHandler, globalMiddleware);
+    const resolver = new Resolver(routes, getRouteHandler, globalMiddleware);
 
     // then create the bundle serving endpoint
     const { loadBundle } = runtime;

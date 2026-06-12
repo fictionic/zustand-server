@@ -1,6 +1,6 @@
 import {match, type ParamData} from "path-to-regexp";
 import {ensureArray} from "../../util/array";
-import type {RoutesMap} from "../../build/config";
+import type {RouteConfig, RoutesMap} from "../../build/config";
 
 export interface RouteMatch {
   routeName: string;
@@ -15,19 +15,16 @@ export interface Router {
 
 export function createRouter(routes: RoutesMap): Router {
   const compiled = Object.entries(routes).map(([routeName, routeConfig]) => {
-    const { path, handler, method } = routeConfig;
-    const methods = !!method ? ensureArray(method) : ['GET'];
     return {
       routeName,
-      matchFn: match(path),
-      methods,
-      handler,
+      routeConfig,
+      matchFn: match(routeConfig.path),
     };
   });
   return {
     matchRoute: (path, method) => {
-      for (const { routeName, matchFn, methods, handler } of compiled) {
-        if (!methods.includes(method.toUpperCase())) {
+      for (const { routeName, matchFn, routeConfig } of compiled) {
+        if (!routeAcceptsMethod(routeConfig, method)) {
           continue;
         }
         const result = matchFn(path);
@@ -36,11 +33,18 @@ export function createRouter(routes: RoutesMap): Router {
             routeName,
             params: result.params,
             method,
-            handler,
+            handler: routeConfig.handler,
           };
         }
       }
       return null;
     },
   };
+}
+
+const DEFAULT_METHOD = 'GET';
+
+export function routeAcceptsMethod(route: RouteConfig, method: string) {
+  const acceptedMethods = ensureArray(route.method ?? DEFAULT_METHOD);
+  return acceptedMethods.includes(method.toUpperCase());
 }

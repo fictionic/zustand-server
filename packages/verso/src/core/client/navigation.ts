@@ -1,4 +1,5 @@
 import {getAbortPromise, initAbort} from "../common/abort";
+import {MAX_RECURSIVE_DEPTH} from "../common/constants";
 import type {StandardizedPage} from "../common/handler/Page";
 import {startClientRLS} from "../common/RequestLocalStorage";
 import type {Resolver} from "../common/resolver";
@@ -23,14 +24,12 @@ export type NavigationState = |
     location: string;
   };
 
-const MAX_RESOLUTION_DEPTH = 10;
-
 export class ClientNavigationManager {
   private dfd: PromiseWithResolvers<void> | null;
   private taskRunner: TaskRunner;
   private listeners: Set<() => void>;
   private state: NavigationState;
-  private resolutionDepth: number = 0; // doesn't need RLS because only one navigation runs at a time
+  private resolutionDepth: number = 1; // doesn't need RLS because only one navigation runs at a time
 
   constructor(private resolver: Resolver) {
     this.dfd = null;
@@ -125,17 +124,17 @@ export class ClientNavigationManager {
    */
   private async getPageResolution(req: Request): Promise<PageResolution> {
     try {
-      if (this.resolutionDepth > MAX_RESOLUTION_DEPTH) {
+      if (this.resolutionDepth > MAX_RECURSIVE_DEPTH) {
         throw new Error('max resolution depth exceeded!');
       }
       this.resolutionDepth++;
       const resolution = await this.resolver.resolve(req);
-      if (resolution.kind !== 'directive') throw new Error('resolution failed; aborting');
-      const { routeName, location, handler } = resolution;
-      if (location) {
-        const url = new URL(location, window.location.origin);
+      if (resolution.kind !== 'response') throw new Error('resolution failed; aborting');
+      const { routeName, redirectLocation, handler } = resolution;
+      if (redirectLocation) {
+        const url = new URL(redirectLocation, window.location.origin);
         if (url.origin === window.location.origin) {
-          const newReq = new Request(location, {
+          const newReq = new Request(redirectLocation, {
             // if we're in hydrate, the controller will bail out
             // as soon as we come back with a different url.
             // so we can assume we're in navigate. in this case,
@@ -150,12 +149,12 @@ export class ClientNavigationManager {
             getAbortPromise(),
           ]);
         } else {
-          window.location.href = location;
+          window.location.href = redirectLocation;
           return Promise.reject(new Error('cross-origin redirect'));
         }
       }
       if (!handler) {
-        throw new Error('resolver returned success but with no page handler. did you forget to set hasDocument?');
+        throw new Error('resolver returned success but with no page handler. did you forget to set hasBody?');
       }
       if (handler.type !== 'page') {
         throw new Error(`client-side navigation only supports page handlers, got ${handler.type}`);

@@ -19,6 +19,10 @@ export default defineConfig({
       path: '/link',
       handler: './src/LinkPage',
     },
+    ProxyPage: {
+      path: '/proxy',
+      handler: './src/ProxyPage',
+    },
     // endpoints
     UsersEndpoint: {
       path: '/api/users/:id',

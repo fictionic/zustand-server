@@ -112,12 +112,14 @@ export function fillClientSettings(s?: Partial<ClientSettings>): ClientSettings 
   return Object.assign({}, DEFAULT_CLIENT_SETTINGS, s);
 }
 
+export type RouteConfig = {
+  path: string;
+  handler: string;
+  method?: string | string[];
+};
+
 export type RoutesMap = {
-  [routeName: string]: {
-    path: string;
-    handler: string;
-    method?: string | string[];
-  };
+  [routeName: string]: RouteConfig;
 };
 
 export function defineConfig(config: VersoConfig): VersoConfig {

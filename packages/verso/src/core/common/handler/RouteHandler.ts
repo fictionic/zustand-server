@@ -3,6 +3,7 @@ import type {MiddlewareDefinition, Scope} from "./Middleware";
 import type {RouteHandlerCtx} from "./RouteHandlerCtx";
 import type {MaybePromise} from "../../../util/promise";
 import type {RedirectStatusCode} from "../redirect";
+import type {ParamData} from "path-to-regexp";
 
 export interface HandlerRegistry {}
 
@@ -19,8 +20,11 @@ export type RouteDirective = |
     kind: 'redirect',
     code: RedirectStatusCode;
     location: string;
+  } | {
+    kind: 'proxy',
+    routeName: string;
+    routeParams?: ParamData;
   };
-  // TODO: proxyRoute?: string;
 
 export interface SharedOptionalMethods {
   getRouteDirective(): MaybePromise<RouteDirective>;
