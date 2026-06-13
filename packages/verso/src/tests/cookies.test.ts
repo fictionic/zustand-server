@@ -13,37 +13,37 @@ function makeRequest(cookieHeader?: string): Request {
 describe('cookies', () => {
   serverSide(() => {
     describe('getCookie', () => {
-      test('returns response cookie when set', withRLS(() => {
+      test('returns response cookie when set', () => withRLS(() => {
         const sc = new ServerCookies(makeRequest());
         sc.setResponseCookie('session', 'resp-value');
         expect(getCookie('session')).toBe('resp-value');
       }));
 
-      test('returns request cookie when no response cookie is set', withRLS(() => {
+      test('returns request cookie when no response cookie is set', () => withRLS(() => {
         new ServerCookies(makeRequest('session=req-value'));
         expect(getCookie('session')).toBe('req-value');
       }));
 
-      test('response cookie takes precedence over request cookie', withRLS(() => {
+      test('response cookie takes precedence over request cookie', () => withRLS(() => {
         const sc = new ServerCookies(makeRequest('session=req-value'));
         sc.setResponseCookie('session', 'resp-value');
         expect(getCookie('session')).toBe('resp-value');
       }));
 
-      test('returns undefined when cookie not found', withRLS(() => {
+      test('returns undefined when cookie not found', () => withRLS(() => {
         new ServerCookies(makeRequest());
         expect(getCookie('missing')).toBeUndefined();
       }));
     });
 
     describe('setCookie', () => {
-      test('delegates to ServerCookies.setResponseCookie', withRLS(() => {
+      test('delegates to ServerCookies.setResponseCookie', () => withRLS(() => {
         const sc = new ServerCookies(makeRequest());
         setCookie('theme', 'dark');
         expect(sc.getResponseCookie('theme')).toBe('dark');
       }));
 
-      test('delegates with options', withRLS(() => {
+      test('delegates with options', () => withRLS(() => {
         const sc = new ServerCookies(makeRequest());
         setCookie('auth', 'token123', { path: '/', httpOnly: true });
         expect(sc.getResponseCookie('auth')).toBe('token123');

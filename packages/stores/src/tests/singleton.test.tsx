@@ -12,7 +12,7 @@ afterEach(() => {
 
 // ─── createStore ────────────────────────────────────────────────────────────
 
-test("createStore creates a store instance", withRLS(() => {
+test("createStore creates a store instance", () => withRLS(() => {
   const Store = asSingleton(
     defineTestIsoStore<{}, { count: number }>(
       () => () => ({ count: 42 })
@@ -24,7 +24,7 @@ test("createStore creates a store instance", withRLS(() => {
   expect(instance.nativeStore).toBeTruthy();
 }));
 
-test("createStore throws on second call", withRLS(() => {
+test("createStore throws on second call", () => withRLS(() => {
   const Store = asSingleton(
     defineTestIsoStore<{}, { x: number }>(
       () => () => ({ x: 1 })
@@ -37,7 +37,7 @@ test("createStore throws on second call", withRLS(() => {
 
 // ─── hooks ──────────────────────────────────────────────────────────────────
 
-test("hooks access store through provider context", withRLS(() => {
+test("hooks access store through provider context", () => withRLS(() => {
   const Store = asSingleton(
     defineTestIsoStore<{}, { name: string }>(
       () => () => ({ name: "Alice" })
@@ -62,7 +62,7 @@ test("hooks access store through provider context", withRLS(() => {
 
 // ─── useClientHooks ─────────────────────────────────────────────────────────
 
-test("useClientHooks throws if no singleton has been created", withRLS(() => {
+test("useClientHooks throws if no singleton has been created", () => withRLS(() => {
   const Store = asSingleton(
     defineTestIsoStore<{}, { x: number }>(
       () => () => ({ x: 1 })
@@ -84,7 +84,7 @@ test("useClientHooks throws if no singleton has been created", withRLS(() => {
   }
 }));
 
-test("useClientHooks: returns not ready initially, then ready after whenReady", withRLS(async () => {
+test("useClientHooks: returns not ready initially, then ready after whenReady", () => withRLS(async () => {
   let resolveName!: (v: string) => void;
   const Store = asSingleton(
     defineTestIsoStore<{}, { name: string }>(
@@ -109,7 +109,7 @@ test("useClientHooks: returns not ready initially, then ready after whenReady", 
   await waitForDom(() => screen.getByText("Alice"));
 }));
 
-test("useClientHooks: works without provider (cross-root access)", withRLS(async () => {
+test("useClientHooks: works without provider (cross-root access)", () => withRLS(async () => {
   const Store = asSingleton(
     defineTestIsoStore<{}, { value: string }>(
       () => () => ({ value: "hello" })
@@ -133,7 +133,7 @@ test("useClientHooks: works without provider (cross-root access)", withRLS(async
 
 // ─── message ────────────────────────────────────────────────────────────────
 
-test("message broadcasts to mounted singleton instances", withRLS(async () => {
+test("message broadcasts to mounted singleton instances", () => withRLS(async () => {
   type Msg = { type: "rename"; name: string };
 
   const Store = asSingleton(

@@ -10,24 +10,24 @@ function makeRequest(cookieHeader?: string): Request {
 }
 
 describe('ServerCookies', () => {
-  test('parses Cookie header correctly', withRLS(() => {
+  test('parses Cookie header correctly', () => withRLS(() => {
     const sc = new ServerCookies(makeRequest('a=1; b=2'));
     expect(sc.getRequestCookie('a')).toBe('1');
     expect(sc.getRequestCookie('b')).toBe('2');
   }));
 
-  test('getRequestCookie returns undefined for missing key', withRLS(() => {
+  test('getRequestCookie returns undefined for missing key', () => withRLS(() => {
     const sc = new ServerCookies(makeRequest('a=1; b=2'));
     expect(sc.getRequestCookie('z')).toBeUndefined();
   }));
 
-  test('setResponseCookie before consumeHeaders stores the cookie', withRLS(() => {
+  test('setResponseCookie before consumeHeaders stores the cookie', () => withRLS(() => {
     const sc = new ServerCookies(makeRequest());
     sc.setResponseCookie('session', 'abc123');
     expect(sc.getResponseCookie('session')).toBe('abc123');
   }));
 
-  test('setResponseCookie after headers are locked throws', withRLS(() => {
+  test('setResponseCookie after headers are locked throws', () => withRLS(() => {
     const sc = new ServerCookies(makeRequest());
     getServerStash().headersLocked = true;
     expect(() => sc.setResponseCookie('session', 'abc123')).toThrow(
@@ -35,7 +35,7 @@ describe('ServerCookies', () => {
     );
   }));
 
-  test('consumeHeaders returns Headers with Set-Cookie values', withRLS(() => {
+  test('consumeHeaders returns Headers with Set-Cookie values', () => withRLS(() => {
     const sc = new ServerCookies(makeRequest());
     sc.setResponseCookie('token', 'xyz', { path: '/', httpOnly: true });
     const headers = sc.getResponseSetCookieHeaders();
@@ -44,7 +44,7 @@ describe('ServerCookies', () => {
     expect(setCookie).toContain('token=xyz');
   }));
 
-  test('setResponseSetCookieHeaders parses and stores multiple Set-Cookie strings', withRLS(() => {
+  test('setResponseSetCookieHeaders parses and stores multiple Set-Cookie strings', () => withRLS(() => {
     const sc = new ServerCookies(makeRequest());
     sc.setResponseSetCookieHeaders([
       'user=alice; Path=/',
@@ -54,19 +54,19 @@ describe('ServerCookies', () => {
     expect(sc.getResponseCookie('theme')).toBe('dark');
   }));
 
-  test('getResponseCookie returns pending response cookie value', withRLS(() => {
+  test('getResponseCookie returns pending response cookie value', () => withRLS(() => {
     const sc = new ServerCookies(makeRequest());
     sc.setResponseCookie('lang', 'en');
     expect(sc.getResponseCookie('lang')).toBe('en');
     expect(sc.getResponseCookie('missing')).toBeUndefined();
   }));
 
-  test('static get() returns instance inside request after construction', withRLS(() => {
+  test('static get() returns instance inside request after construction', () => withRLS(() => {
     const sc = new ServerCookies(makeRequest());
     expect(ServerCookies.get()).toBe(sc);
   }));
 
-  test('static get() returns undefined inside request before any construction', withRLS(() => {
+  test('static get() returns undefined inside request before any construction', () => withRLS(() => {
     expect(ServerCookies.get()).toBeUndefined();
   }));
 
