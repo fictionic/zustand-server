@@ -6,17 +6,18 @@ import { getPass } from './pass';
  * Assert that a component hydrates cleanly — i.e. the server render and the
  * client render agree, so React won't throw away the server markup.
  *
- * Runs only in the `hydration` project (see versoProjects), which uses jsdom and
- * — crucially — does NOT statically define `IS_SERVER`, leaving it a runtime
- * global this helper flips across the two phases:
+ * Used in `*.hydration.test.*` files, which the `hydration` project (see
+ * versoProjects) is the only pass to collect. It uses jsdom and — crucially —
+ * does NOT statically define `IS_SERVER`, leaving it a runtime global this
+ * helper flips across the two phases:
  *
  *  1. server phase: `IS_SERVER = true`, render to HTML via `renderToString`
  *     (exactly what Verso does on the server).
  *  2. client phase: `IS_SERVER = false`, hydrate that markup with real ReactDOM.
  *
  * Any hydration mismatch React reports (`onRecoverableError`) fails the test.
- * Gating is by runtime pass, not filename: testHydration() runs only in the
- * hydration pass and self-skips in the server/client passes.
+ * The `getPass()` guard below is a belt-and-suspenders check — the filename
+ * suffix already routes these to the hydration pass only.
  *
  * `render` is invoked once per phase, so environment branching at element-
  * construction time is exercised too — not just branching inside components.
