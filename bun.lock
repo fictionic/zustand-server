@@ -77,14 +77,13 @@
     "packages/store-adapter-redux": {
       "name": "@verso-js/store-adapter-redux",
       "version": "0.0.0",
-      "dependencies": {
-        "@verso-js/stores": "workspace:*",
-      },
       "devDependencies": {
         "@types/react": "^19.2.14",
+        "@verso-js/stores": "workspace:*",
         "redux": "^5.0.1",
       },
       "peerDependencies": {
+        "@verso-js/stores": "workspace:*",
         "react": "^19.2.4",
         "redux": "^5.0.1",
       },
@@ -92,14 +91,13 @@
     "packages/store-adapter-valtio": {
       "name": "@verso-js/store-adapter-valtio",
       "version": "0.0.0",
-      "dependencies": {
-        "@verso-js/stores": "workspace:*",
-      },
       "devDependencies": {
         "@types/react": "^19.2.14",
+        "@verso-js/stores": "workspace:*",
         "valtio": "^2.3.1",
       },
       "peerDependencies": {
+        "@verso-js/stores": "workspace:*",
         "react": "^19.2.4",
         "valtio": "^2.3.1",
       },
@@ -107,14 +105,13 @@
     "packages/store-adapter-zustand": {
       "name": "@verso-js/store-adapter-zustand",
       "version": "0.0.0",
-      "dependencies": {
-        "@verso-js/stores": "workspace:*",
-      },
       "devDependencies": {
         "@types/react": "^19.2.14",
+        "@verso-js/stores": "workspace:*",
         "zustand": "^5.0.11",
       },
       "peerDependencies": {
+        "@verso-js/stores": "workspace:*",
         "react": "^19.2.4",
         "zustand": "^5.0.11",
       },
@@ -122,18 +119,17 @@
     "packages/stores": {
       "name": "@verso-js/stores",
       "version": "0.0.0",
-      "dependencies": {
-        "@verso-js/verso": "workspace:*",
-      },
       "devDependencies": {
         "@testing-library/react": "^16.3.2",
         "@types/react": "^19.2.14",
-        "@verso-js/store-adapter-zustand": "workspace:*",
+        "@verso-js/verso": "workspace:*",
         "jsdom": "^29.0.0",
+        "react": "^19.2.4",
         "react-dom": "^19.2.4",
         "vitest": "^4.1.0",
       },
       "peerDependencies": {
+        "@verso-js/verso": "workspace:*",
         "react": "^19.2.4",
       },
     },
