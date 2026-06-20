@@ -52,8 +52,10 @@ export function handlePage(page: StandardizedPage): HandlerResponse {
 
     let lastRootIndex = 0;
     function onRoot(index: number) {
+      // send the rendered html right away
       flush();
       if (haveBootstrapped) {
+        // then send down any wakeup signals
         hydrateRootsUpTo(index);
         flush();
       }
@@ -100,13 +102,15 @@ export function handlePage(page: StandardizedPage): HandlerResponse {
 
     signalRootsComplete();
 
-    if (!haveBootstrapped) {
+    if (!haveBootstrapped && !didAbort()) {
       // if TheFold wasn't declared, then it's after the last root
       await onTheFold(lastRootIndex + 1);
     }
 
     if (didAbort()) {
-      abortHydration();
+      if (haveBootstrapped) {
+        abortHydration();
+      }
       flush();
     }
 
@@ -166,6 +170,7 @@ export function handlePage(page: StandardizedPage): HandlerResponse {
   }
 
   function wrapUpLateArrivals() {
+    if (didAbort()) return Promise.resolve();
     // we don't have to race against the abort promise here because
     // our fetch() calls are automatically wired up to the abort signal
     return lateArrivalsDfd.promise;
