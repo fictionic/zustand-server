@@ -88,6 +88,27 @@
         "redux": "^5.0.1",
       },
     },
+    "packages/store-adapter-story-stores": {
+      "name": "@verso-js/store-adapter-story-stores",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@testing-library/react": "^16.3.2",
+        "@types/react": "^19.2.14",
+        "@verso-js/stores": "workspace:*",
+        "@verso-js/verso": "workspace:*",
+        "jsdom": "^29.0.0",
+        "react": "^19.2.4",
+        "react-dom": "^19.2.4",
+        "story-stores": "^0.1.0",
+        "vitest": "^4.1.0",
+      },
+      "peerDependencies": {
+        "@verso-js/stores": "workspace:*",
+        "@verso-js/verso": "workspace:*",
+        "react": "^19.2.4",
+        "story-stores": "^0.1.0",
+      },
+    },
     "packages/store-adapter-valtio": {
       "name": "@verso-js/store-adapter-valtio",
       "version": "0.0.0",
@@ -130,26 +151,6 @@
       },
       "peerDependencies": {
         "@verso-js/verso": "workspace:*",
-        "react": "^19.2.4",
-      },
-    },
-    "packages/story-stores": {
-      "name": "story-stores",
-      "version": "0.0.0",
-      "dependencies": {
-        "@verso-js/stores": "workspace:*",
-        "@verso-js/verso": "workspace:*",
-        "immer": "*",
-      },
-      "devDependencies": {
-        "@testing-library/react": "^16.3.2",
-        "@types/react": "^19.2.14",
-        "jsdom": "^29.0.0",
-        "react": "^19.2.4",
-        "react-dom": "^19.2.4",
-        "vitest": "^4.1.0",
-      },
-      "peerDependencies": {
         "react": "^19.2.4",
       },
     },
@@ -423,6 +424,8 @@
 
     "@verso-js/store-adapter-redux": ["@verso-js/store-adapter-redux@workspace:packages/store-adapter-redux"],
 
+    "@verso-js/store-adapter-story-stores": ["@verso-js/store-adapter-story-stores@workspace:packages/store-adapter-story-stores"],
+
     "@verso-js/store-adapter-valtio": ["@verso-js/store-adapter-valtio@workspace:packages/store-adapter-valtio"],
 
     "@verso-js/store-adapter-zustand": ["@verso-js/store-adapter-zustand@workspace:packages/store-adapter-zustand"],
@@ -643,7 +646,7 @@
 
     "std-env": ["std-env@4.0.0", "", {}, "sha512-zUMPtQ/HBY3/50VbpkupYHbRroTRZJPRLvreamgErJVys0ceuzMkD44J/QjqhHjOzK42GQ3QZIeFG1OYfOtKqQ=="],
 
-    "story-stores": ["story-stores@workspace:packages/story-stores"],
+    "story-stores": ["story-stores@0.1.0", "", { "dependencies": { "immer": "^11" }, "peerDependencies": { "react": "^19" } }, "sha512-MQVGt5VlRTBk1gUYmdgCQm2jA3Gij1BMwxfx4YRIMFIK3QEGBsJ3TGafewbaENyvC7SSUlSG/7f66mW+42p2DA=="],
 
     "sucrase": ["sucrase@3.35.1", "", { "dependencies": { "@jridgewell/gen-mapping": "^0.3.2", "commander": "^4.0.0", "lines-and-columns": "^1.1.6", "mz": "^2.7.0", "pirates": "^4.0.1", "tinyglobby": "^0.2.11", "ts-interface-checker": "^0.1.9" }, "bin": { "sucrase": "bin/sucrase", "sucrase-node": "bin/sucrase-node" } }, "sha512-DhuTmvZWux4H1UOnWMB3sk0sbaCVOoQZjv8u1rDoTV0HTdGem9hkAZtl4JZy8P2z4Bg0nT+YMeOFyVr4zcG5Tw=="],
 

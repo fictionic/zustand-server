@@ -2,7 +2,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { act, cleanup, render, screen, waitFor as waitForDom } from "@testing-library/react";
 import { IsoStoreProvider } from "@verso-js/stores";
-import { defineStoryStore } from "../adapter";
+import { defineStoryStore } from "../story-stores";
 
 afterEach(cleanup);
 

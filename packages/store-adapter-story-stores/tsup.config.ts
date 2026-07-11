@@ -1,12 +1,7 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: {
-    index: 'src/index.ts',
-    vanilla: 'src/vanilla.ts',
-    react: 'src/react.ts',
-    adapter: 'src/adapter.ts',
-  },
+  entry: { 'story-stores': 'src/story-stores.ts' },
   outDir: 'dist',
   format: ['esm'],
   dts: true,
@@ -15,7 +10,9 @@ export default defineConfig({
     'react',
     'react-dom',
     'react/jsx-runtime',
-    'immer',
+    'story-stores',
+    'story-stores/vanilla',
+    'story-stores/react',
     '@verso-js/stores',
     '@verso-js/verso',
   ],

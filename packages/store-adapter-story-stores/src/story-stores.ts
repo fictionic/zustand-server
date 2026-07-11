@@ -1,5 +1,5 @@
-import {batch as _batch, createStoryStore, type Selector, type StoryInit, type StoryStore} from "./vanilla";
-import {useStoryStore, type UseStory} from "./react";
+import {batch as _batch, createStoryStore, type Selector, type StoryInit, type StoryStore} from "story-stores/vanilla";
+import {useStoryStore, type UseStory} from "story-stores/react";
 import {defineIsoStore, type Adapter, type IsoStoreInit} from "@verso-js/stores/adapter";
 import type {IsoStoreInstance} from "@verso-js/stores";
 import {isServer} from "@verso-js/verso";

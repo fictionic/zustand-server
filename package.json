@@ -11,7 +11,7 @@
     "packages/store-adapter-zustand",
     "packages/store-adapter-redux",
     "packages/store-adapter-valtio",
-    "packages/story-stores",
+    "packages/store-adapter-story-stores",
     "packages/playwright",
     "packages/demo"
   ],

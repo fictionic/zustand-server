@@ -1,0 +1,41 @@
+{
+  "name": "@verso-js/store-adapter-story-stores",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/story-stores.js",
+  "types": "./dist/story-stores.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/story-stores.d.ts",
+      "default": "./dist/story-stores.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "typecheck": "bunx tsc --noEmit"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@testing-library/react": "^16.3.2",
+    "@verso-js/stores": "workspace:*",
+    "@verso-js/verso": "workspace:*",
+    "jsdom": "^29.0.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "story-stores": "^0.1.0",
+    "vitest": "^4.1.0"
+  },
+  "peerDependencies": {
+    "@verso-js/stores": "workspace:*",
+    "@verso-js/verso": "workspace:*",
+    "react": "^19.2.4",
+    "story-stores": "^0.1.0"
+  }
+}
