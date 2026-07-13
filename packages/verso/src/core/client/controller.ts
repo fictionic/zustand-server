@@ -146,7 +146,7 @@ export class ClientController {
               console.error(`[verso] error hydrating root ${i}`, e);
               hydrationDfd.reject();
             }
-          });
+          }, (_e) => {} /* swallow rejections from abort to prevent unhandled rejection */);
         }
       });
 
