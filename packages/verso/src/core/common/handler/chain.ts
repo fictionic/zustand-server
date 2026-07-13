@@ -37,8 +37,18 @@ export function createHandlerChain<T extends RouteHandlerType, OptionalMethods e
       // no way to do this without `as any` because of the correlated union problem
       const current = (link as any)[methodName];
       if (current) {
-        const next = (chain as any)[methodName];
-        (result as any)[methodName] = current.bind(null, next);
+        const nextRaw = (chain as any)[methodName];
+        (result as any)[methodName] = () => {
+          let calledNext = false;
+          const nextGuarded = () => {
+            if (calledNext) {
+              throw new Error(`next() called more than once in middleware for '${methodName}'`);
+            }
+            calledNext = true;
+            return nextRaw();
+          };
+          return current(nextGuarded);
+        };
       }
     }
     return result;
