@@ -15,7 +15,7 @@ type Opts = {
   settings: ServerSettings
 };
 
-export function runApp({
+export function serveResponse({
   resolver,
   manifest,
   loopback,

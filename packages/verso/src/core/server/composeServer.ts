@@ -2,7 +2,7 @@ import {runWithServerRLS} from "../common/RequestLocalStorage";
 import type {ServerSettings} from "../../build/config";
 import type {Resolver} from "../common/resolver";
 import {resolvePublicRequest} from "./resolvePublicRequest";
-import {runApp} from "./runApp";
+import {serveResponse} from "./serveResponse";
 import {handleFailsafeTimeouts} from "./failsafe";
 import {compose, type RequestHandler} from "../../vendor/hattip/compose";
 import type {AdapterRequestContext} from "../../vendor/hattip/core";
@@ -45,7 +45,7 @@ export const composeServer: ComposeServer = ({
     // know it's bounded.)
     handleFailsafeTimeouts(settings),
     // now we can do the thing we came here to do
-    runApp({ resolver, manifest, loopback, settings }),
+    serveResponse({ resolver, manifest, loopback, settings }),
   );
 
   serve = (req: Request) => runWithServerRLS(async () => {
