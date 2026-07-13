@@ -13,6 +13,7 @@ export const FN_HYDRATE_ROOTS_UP_TO = 'hydrateRootsUpTo' as const;
 export const FN_SIGNAL_ROOTS_COMPLETE = 'signalRootsComplete' as const;
 export const FN_RECEIVE_LATE_DATA_ARRIVAL = 'receiveLateDataArrival' as const;
 export const FN_ABORT_HYDRATION = 'abortHydration' as const;
+export const FN_SIGNAL_END_OF_DATA = 'signalEndOfData' as const;
 
 export interface VersoPipeSchema extends PipeSchema {
   data: {
@@ -29,6 +30,7 @@ export interface VersoPipeSchema extends PipeSchema {
     [FN_SIGNAL_ROOTS_COMPLETE]: [];
     [FN_RECEIVE_LATE_DATA_ARRIVAL]: [CacheableRequest, CacheEntryData];
     [FN_ABORT_HYDRATION]: [];
+    [FN_SIGNAL_END_OF_DATA]: [];
   };
 }
 
