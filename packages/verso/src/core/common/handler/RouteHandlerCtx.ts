@@ -20,7 +20,7 @@ export function createCtx(config: MiddlewareConfig, versoRequest: VersoRequest, 
     params: route.params,
   });
   return Object.freeze({
-    getConfigValue: config.getValue,
+    getConfigValue: config.getValue.bind(config),
     getRequest: () => versoRequest,
     getRoute: () => routeInfo,
   });
