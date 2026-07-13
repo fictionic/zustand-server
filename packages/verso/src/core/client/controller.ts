@@ -3,7 +3,7 @@ import {hydrateRoot} from "react-dom/client";
 import {TOKEN, tokenizeElements} from "../common/tokenizeElements";
 import {scheduleRootRender} from "../common/components/Root";
 import {PAGE_ELEMENT_TOKEN_IDX_ATTR, PAGE_HEADER_LINK_ELEMENT_ATTR, PAGE_ROOT_ELEMENT_ATTR} from "../common/constants";
-import {FETCH_CACHE_KEY, FN_ABORT_HYDRATION, FN_HYDRATE_ROOTS_UP_TO, FN_RECEIVE_LATE_DATA_ARRIVAL, FN_SIGNAL_ROOTS_COMPLETE, REQUEST_DATA_KEY, VersoPipe} from "../common/VersoPipe";
+import {FETCH_CACHE_KEY, FN_ABORT_HYDRATION, FN_HYDRATE_ROOTS_UP_TO, FN_RECEIVE_LATE_DATA_ARRIVAL, FN_SIGNAL_END_OF_DATA, FN_SIGNAL_ROOTS_COMPLETE, REQUEST_DATA_KEY, VersoPipe} from "../common/VersoPipe";
 import {Fetch} from "../common/fetch/Fetch";
 import {StyleTransitioner} from "./transitioners/styles";
 import { ScriptTransitioner } from "./transitioners/scripts";
@@ -161,14 +161,8 @@ export class ClientController {
       // we need to wait for all the root DOM nodes to stream in
       // before proceeding with a client transition, otherwise
       // things get real messy.
+      // TODO: or maybe it wouldn't be too hard to support?
       const receivedAllRootDomNodesDfd = Promise.withResolvers<void>();
-
-      const done = Promise.all([
-        allRootsSettled,
-        receivedAllRootDomNodesDfd.promise,
-      ]).then(() => {
-        readablePipe.destroy(); // TODO: also remove script tags from dom?
-      });
 
       let nextRootIndex = 0;
       function hydrateRootsUpTo(index: number) {
@@ -188,12 +182,24 @@ export class ClientController {
         nextRootIndex = index + 1;
       };
 
+      // sent when all the body html, including all root html and late arrival
+      // data, has streamed down.
+      const receivedAllDataDfd = Promise.withResolvers<void>();
+
       readablePipe.onCallFn(FN_HYDRATE_ROOTS_UP_TO, hydrateRootsUpTo);
       readablePipe.onCallFn(FN_SIGNAL_ROOTS_COMPLETE, receivedAllRootDomNodesDfd.resolve);
       readablePipe.onCallFn(FN_RECEIVE_LATE_DATA_ARRIVAL, Fetch.getCache().client().receiveLateArrivalData);
       readablePipe.onCallFn(FN_ABORT_HYDRATION, () => abortHydration(nextRootIndex));
+      readablePipe.onCallFn(FN_SIGNAL_END_OF_DATA, () => receivedAllDataDfd.resolve());
 
-      await done;
+      receivedAllDataDfd.promise.then(() => {
+        readablePipe.destroy(); // TODO: also remove script tags from dom?
+      });
+
+      await Promise.all([
+        allRootsSettled,
+        receivedAllRootDomNodesDfd.promise,
+      ]);
     };
 
     await this.navigationManager.requestNavigation(start, commit);
