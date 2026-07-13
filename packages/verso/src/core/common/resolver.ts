@@ -1,9 +1,7 @@
 import type {RoutesMap} from "../../build/config";
 import {createHandlerChain} from "./handler/chain";
 import type {MiddlewareDefinition} from "./handler/Middleware";
-import {MiddlewareConfig} from "./handler/MiddlewareConfig";
 import type {AnyStandardizedHandler, RouteDirective, RouteHandlerDefinition, RouteHandlerType} from "./handler/RouteHandler";
-import {createCtx} from "./handler/RouteHandlerCtx";
 import {createRouter, routeAcceptsMethod, type RouteMatch, type Router} from "./router";
 import type {MaybePromise} from "../../util/promise";
 import {VersoRequest} from "./VersoRequest";
@@ -59,9 +57,8 @@ export class Resolver {
       console.error(`[verso] no handler for route ${routeName}`);
       return { kind: 'error' };
     }
-    const config = new MiddlewareConfig();
-    const ctx = createCtx(config, versoRequest, route);
-    const chain = createHandlerChain(handler, this.globalMiddleware, config, ctx);
+
+    const chain = createHandlerChain(handler, versoRequest, route, this.globalMiddleware);
 
     let directive: RouteDirective;
     try {

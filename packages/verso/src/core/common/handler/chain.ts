@@ -1,14 +1,18 @@
 import type {MiddlewareDefinition, Middleware, Scope} from "./Middleware";
 import type {RouteHandlerDefinition, RouteHandlerType, StandardizedRouteHandler} from "./RouteHandler";
-import type {MiddlewareConfig} from "./MiddlewareConfig";
-import type {RouteHandlerCtx} from "./RouteHandlerCtx";
+import {MiddlewareConfig} from "./MiddlewareConfig";
+import {createCtx, type RouteHandlerCtx} from "./RouteHandlerCtx";
+import type {VersoRequest} from "../VersoRequest";
+import type {RouteMatch} from "../router";
 
 export function createHandlerChain<T extends RouteHandlerType, OptionalMethods extends {}, RequiredMethods extends {}>(
   def: RouteHandlerDefinition<T, OptionalMethods, RequiredMethods>,
+  versoRequest: VersoRequest,
+  route: RouteMatch,
   globalMiddleware: MiddlewareDefinition<Scope>[],
-  config: MiddlewareConfig,
-  ctx: RouteHandlerCtx,
 ): StandardizedRouteHandler<T, OptionalMethods, RequiredMethods> {
+  const config = new MiddlewareConfig();
+  const ctx = createCtx(config, versoRequest, route);
   const handler = def.init(ctx);
 
   const baseMiddleware = [...globalMiddleware, ...(handler.middleware ?? [])];
