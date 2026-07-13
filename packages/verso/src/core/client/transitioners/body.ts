@@ -69,7 +69,6 @@ export class BodyElementTransitioner {
             if (this.tryUpdateExistingDomNodeInPlace(renderedElement)) {
               continue;
             }
-            console.log("verso tearing down old dom and writing new page fresh from index ", renderedElement.index);
             this.reusingDom = false;
           }
           if (!this.didTeardownDom) {
@@ -94,7 +93,7 @@ export class BodyElementTransitioner {
 
     if (renderedElement.kind === 'close') {
       if (targetElement) {
-        console.log("[verso] expected container close, got another child");
+        console.error("[verso] expected container close, got another child");
         return false;
       }
       const newContainer = this.currentContainer.parentElement;
@@ -107,13 +106,13 @@ export class BodyElementTransitioner {
     }
 
     if (!targetElement) {
-      console.log(`[verso] expected to find ${renderedElement.kind}, got nothing`);
+      console.error(`[verso] expected to find ${renderedElement.kind}, got nothing`);
       // the new page has more elements than the old page
       return false;
     }
 
     if (targetElement.kind !== renderedElement.kind) {
-      console.log("[verso] next target element has mismatched kind. existing:", targetElement.kind, "new:", renderedElement.kind);
+      console.error("[verso] next target element has mismatched kind. existing:", targetElement.kind, "new:", renderedElement.kind);
       // the new page has a different shape than the old page
       return false;
     }
