@@ -8,9 +8,9 @@ const SOURCE_ATTR_NAME = 'data-verso-portal-source';
 type Props = {
   children: ReactNode;
   selector: string;
-  key?: Key;
+  portalKey?: Key;
 };
-export function IsomorphicPortal({ children, selector, key }: Props) {
+export function IsomorphicPortal({ children, selector, portalKey }: Props) {
   const id = useId();
   if (globalThis.IS_SERVER) {
     const script = `
@@ -22,7 +22,7 @@ targetNode.appendChild(sourceNode);
 container.parentNode.removeChild(container);
 `.trim();
     return (
-      <div key={key} {...{[CONTAINER_ATTR_NAME]: id}}>
+      <div key={portalKey} {...{[CONTAINER_ATTR_NAME]: id}}>
         <div {...{[SOURCE_ATTR_NAME]: id}} style={{ display: 'contents' }}> { children } </div>
         <script dangerouslySetInnerHTML={{ __html: script }} />
       </div>
@@ -47,5 +47,5 @@ container.parentNode.removeChild(container);
     setMounted(true);
   }, []);
   if (!mounted) return null;
-  return createPortal(children, targetNode, key);
+  return createPortal(children, targetNode, portalKey);
 }
