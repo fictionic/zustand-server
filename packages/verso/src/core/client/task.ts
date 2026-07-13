@@ -1,3 +1,5 @@
+import {silenced} from "../../util/promise";
+
 export type Task = () => TaskHandle;
 
 export type TaskHandle = {
@@ -39,11 +41,12 @@ export class TaskRunner {
   }
 
   /**
-   * Run a task.
-   * If the task is interrupted, the function rejects with a sentinel
-   * that can be detected with isInterruption().
+   * Runs a task.
+   * Resolves with void when the task has completed, or throws the error thrown
+   * by the task. If the task is interrupted, rejects with a sentinel that can
+   * be detected with isInterruption().
    */
-  async runTask(task: Task) {
+  async runTask(task: Task): Promise<void> {
     if (this.activeCount === 0) this.onActive?.();
     this.activeCount++;
     try {
@@ -54,7 +57,10 @@ export class TaskRunner {
         this.next = task;
         await silenced(current.handle.promise);
         if (this.next !== task) {
-          return Promise.reject(INTERRUPTED);
+          // NOTE: this assumes that runTask will only ever be called once on
+          // each Task. don't think it's worth handling that case, but just
+          // pointing it out here...
+          throw INTERRUPTED;
         }
         // now it's our turn to run
         this.next = null;
@@ -70,8 +76,9 @@ export class TaskRunner {
               // propagate external errors up to the caller...
               throw err;
             }
-            // ...unless the task was interrupted. we'll swallow and throw our own sentinel,
-            // since the consumer only cares that it was interrupted.
+            // ...unless the task was interrupted. we'll swallow and throw our
+            // own sentinel, since the consumer only cares that it was
+            // interrupted.
           });
         if (ref.interrupted) {
           throw INTERRUPTED;
@@ -85,12 +92,8 @@ export class TaskRunner {
     }
   }
 
-  isInterruption(e: any): boolean {
-    return e === INTERRUPTED;
-  }
-
 }
 
-function silenced(p: Promise<void>): Promise<void> {
-  return p.catch(() => {});
+export function isInterruption(e: any): boolean {
+  return e === INTERRUPTED;
 }

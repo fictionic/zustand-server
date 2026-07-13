@@ -3,7 +3,7 @@ import {MAX_RECURSIVE_DEPTH} from "../common/constants";
 import type {StandardizedPage} from "../common/handler/Page";
 import {startClientRLS} from "../common/RequestLocalStorage";
 import type {Resolver} from "../common/resolver";
-import {TaskRunner} from "./task";
+import {isInterruption, TaskRunner} from "./task";
 
 export type StartNavigation = (signal: AbortSignal) => Request;
 export type CommitNavigation = (result: PageResolution) => Promise<void>;
@@ -93,7 +93,7 @@ export class ClientNavigationManager {
     try {
       await this.taskRunner.runTask(task);
     } catch (e) {
-      if (this.taskRunner.isInterruption(e)) {
+      if (isInterruption(e)) {
         // swallow
         return;
       }
