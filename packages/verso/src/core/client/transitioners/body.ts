@@ -136,7 +136,9 @@ export class BodyElementTransitioner {
           return false;
         }
         // let react reconcile the new fiber tree against the existing dom
-        reactRoot.render(reactElement);
+        // (this also wants flushSync because we want all the old elements
+        // unmounted before we tear down the previous styles)
+        flushSync(() => reactRoot.render(reactElement));
         // update the attrs
         setRootAttrs(targetDomElement, attrs, index);
         break;
