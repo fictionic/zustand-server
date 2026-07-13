@@ -41,13 +41,13 @@ export function serveResponse({
 
     const cookies = new ServerCookies(req);
 
-    const resolution = await resolver.resolve(req);
+    const resolution = await resolver.resolveRoute(req);
 
     switch (resolution.kind) {
       case 'not-found':
         return; // passthrough to fallback hattip 404 handler
       case 'error':
-        throw new Error('[verso] resolution error');
+        throw new Error('resolution error');
       case 'response':
         break;
       default:

@@ -132,7 +132,7 @@ export class ClientNavigationManager {
   }
 
   /**
-   * Wrapper around Resolver.resolve() tailored to ClientController
+   * Wrapper around Resolver.resolveRoute() tailored to ClientController
    */
   private async getPageResolution(req: Request): Promise<PageResolution> {
     try {
@@ -140,7 +140,7 @@ export class ClientNavigationManager {
         throw new Error('max resolution depth exceeded!');
       }
       this.resolutionDepth++;
-      const resolution = await this.resolver.resolve(req);
+      const resolution = await this.resolver.resolveRoute(req);
       if (resolution.kind !== 'response') throw new Error('resolution failed; aborting');
       const { routeName, redirectLocation, handler } = resolution;
       if (redirectLocation) {

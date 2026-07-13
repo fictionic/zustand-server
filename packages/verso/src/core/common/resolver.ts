@@ -20,7 +20,7 @@ const RLS = getRLS<{
   proxyDepth: number;
 }>();
 
-export type Resolution = |
+export type RouteResolution = |
   { kind: 'not-found' } |
   { kind: 'error' } |
   {
@@ -40,7 +40,7 @@ export class Resolver {
     this.router = createRouter(routes);
   }
 
-  async resolve(req: Request): Promise<Resolution> {
+  async resolveRoute(req: Request): Promise<RouteResolution> {
     const url = new URL(req.url);
     const route = this.router.matchRoute(url.pathname + url.search, req.method);
     if (!route) {
@@ -48,10 +48,10 @@ export class Resolver {
     }
     const versoRequest = new VersoRequest(req);
     RLS().proxyDepth = 1;
-    return await this.resolveFromRoute(route, versoRequest);
+    return await this.resolveFromRouteMatch(route, versoRequest);
   }
 
-  private async resolveFromRoute(route: RouteMatch, versoRequest: VersoRequest): Promise<Resolution> {
+  private async resolveFromRouteMatch(route: RouteMatch, versoRequest: VersoRequest): Promise<RouteResolution> {
     const { routeName } = route;
     const handler = await this.getRouteHandler(routeName);
     if (!handler) {
@@ -131,7 +131,7 @@ export class Resolver {
           method,
           handler: proxiedRouteConfig.handler,
         };
-        return await this.resolveFromRoute(proxiedRoute, versoRequest);
+        return await this.resolveFromRouteMatch(proxiedRoute, versoRequest);
       }
       default:
         throw new Error(`unexpected directive kind ${directive satisfies never}`);
