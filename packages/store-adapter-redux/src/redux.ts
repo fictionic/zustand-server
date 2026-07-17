@@ -27,12 +27,13 @@ interface ReduxClientHooks<State> {
 export const getAdapter = <State extends object>(): Adapter<State, ReduxStore<State>, ReduxStoreInit<State>, ReduxHooks<State>, ReduxClientHooks<State>> => {
   const useHooks = (useNativeStore: () => ReduxStore<State>) => {
     return {
-      useSelector: <U>(selector: (s: State) => U): U => (
-        useSyncExternalStore(
-          (callback: () => void) => useNativeStore().subscribe(callback),
-          () => selector(useNativeStore().getState()),
-        )
-      ),
+      useSelector: <U>(selector: (s: State) => U): U => {
+        const store = useNativeStore();
+        return useSyncExternalStore(
+          (callback: () => void) => store.subscribe(callback),
+          () => selector(store.getState()),
+        );
+      },
       useDispatch: () => useNativeStore().dispatch,
     };
   };
