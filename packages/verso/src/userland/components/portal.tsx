@@ -42,6 +42,7 @@ container.parentNode.removeChild(container);
       // don't double-render
       targetNode.removeChild(sourceNode);
     } else {
+      // TODO: suppress this warning during client transitions
       console.warn("[verso-portal:client] cannot find server-rendered source node");
     }
     setMounted(true);
