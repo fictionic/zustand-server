@@ -5,7 +5,7 @@ type GetClientController = typeof import('../../core/client/controller').getClie
 let getController: GetClientController | null = null;
 
 if (!globalThis.IS_SERVER) {
-  import('../../core/client/controller').then(({ getClientController }) => {
+  await import('../../core/client/controller').then(({ getClientController }) => {
     getController = getClientController;
   });
 }
