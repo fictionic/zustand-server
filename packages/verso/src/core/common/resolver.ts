@@ -40,7 +40,7 @@ export class Resolver {
 
   async resolveRoute(req: Request): Promise<RouteResolution> {
     const url = new URL(req.url);
-    const route = this.router.matchRoute(url.pathname + url.search, req.method);
+    const route = this.router.matchRoute(url.pathname, req.method);
     if (!route) {
       return { kind: 'not-found' };
     }
