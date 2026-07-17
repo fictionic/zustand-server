@@ -135,7 +135,7 @@ export class ClientController {
           rootHydrationDfds[i] = hydrationDfd;
           rootDomNodeDfds[i] = Promise.withResolvers();
           // start rendering below-the-fold roots before their dom nodes have streamed in
-          const { promise: renderPromise, attrs: _attrs } = scheduleRootRender(token.element);
+          const { promise: renderPromise, attrs: _attrs } = scheduleRootRender(token.element, i);
           rootDomNodeDfds[i].promise.then(async (node) => {
             try {
               const reactElement = await renderPromise;

@@ -86,7 +86,7 @@ export class PageElementProcessor<RenderedElement> {
           // the fold is just a control element; nothing to render
           break;
         case TOKEN.ROOT: {
-          const { promise, attrs } = scheduleRootRender(token.element);
+          const { promise, attrs } = scheduleRootRender(token.element, i);
           const renderPromise = promise.then(async (reactElement) => {
             if (processable.status === TOKEN_STATUS.ABORTED) return;
             processable.rendered = this.opts.renderRootElement(i, reactElement, attrs);

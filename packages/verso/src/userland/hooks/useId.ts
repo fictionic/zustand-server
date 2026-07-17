@@ -1,15 +1,14 @@
-import {getRLS} from "../../core/common/RequestLocalStorage";
+import {useId as useReactId} from "react";
+import {useRootIndex} from "../../core/common/components/Root";
 
-const RLS = getRLS<{ count?: number }>();
-
-export function useId(prefix?: string): string {
-  const count = ensureCount();
-  return `${prefix ?? ''}:${count}`;
-}
-
-function ensureCount(): number {
-  if (typeof RLS().count !== 'number') {
-    RLS().count = 0;
-  }
-  return RLS().count!++;
+/**
+ * Returns an ID that is unique to the callsite within the given Verso page
+ * request.
+ *
+ * This should always be used in favor of React.useId.
+ */
+export function useId(): string {
+  const rootIndex = useRootIndex();
+  const reactId = useReactId();
+  return `${rootIndex}:${reactId}`;
 }

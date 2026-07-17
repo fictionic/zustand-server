@@ -54,15 +54,19 @@ export const Root = makeRootComponent<RootProps>(RootPassthrough, (p) => {
   return rest;
 });
 
-const NO_ROOT = Symbol('verso.NoRoot');
-const RootContext = createContext<WhenResult>(NO_ROOT);
+const NO_ROOT: unique symbol = Symbol('verso.NoRoot');
+type RootContextType = {
+  index: number;
+  whenResult: WhenResult;
+};
+const RootContext = createContext<RootContextType | typeof NO_ROOT>(NO_ROOT);
 
 export type ScheduledRootRender = {
   promise: Promise<ReactElement>;
   attrs: RenderableHTMLAttributes;
 };
 
-export function scheduleRootRender(element: AnyRootElement): ScheduledRootRender {
+export function scheduleRootRender(element: AnyRootElement, index: number): ScheduledRootRender {
   const { deriveRootProps } = element.type[ROOT_COMPONENT];
   const { when, ...attrs } = deriveRootProps(element.props);
   const whenPromise = (when ?? Promise.resolve())
@@ -71,9 +75,12 @@ export function scheduleRootRender(element: AnyRootElement): ScheduledRootRender
       return null;
     });
   return {
-    promise: whenPromise.then((data) => (
+    promise: whenPromise.then((whenResult) => (
       <StrictMode>
-        <RootContext.Provider value={data}>
+        <RootContext.Provider value={{
+          index,
+          whenResult,
+        }}>
           {element}
         </RootContext.Provider>
       </StrictMode>
@@ -82,10 +89,18 @@ export function scheduleRootRender(element: AnyRootElement): ScheduledRootRender
   };
 }
 
-export function useRootData<T>(): T {
+function useRootContext(): RootContextType {
   const value = useContext(RootContext);
   if (value === NO_ROOT) {
     throw new Error('[verso] useRootData() called outside a Root!');
   }
-  return value as T;
+  return value;
+}
+
+export function useRootData<T>(): T {
+  return useRootContext().whenResult as T;
+}
+
+export function useRootIndex(): number {
+  return useRootContext().index;
 }
