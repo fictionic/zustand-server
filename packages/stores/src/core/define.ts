@@ -119,7 +119,7 @@ export function defineIsoStore<Opts, State extends object, Message, NativeStoreI
 
     const whenReady = handlePending(blocking);
 
-    didMountDfd.promise.then(() => handlePending(nonBlocking));
+    void didMountDfd.promise.then(() => handlePending(nonBlocking));
 
     return {
       whenReady,
@@ -157,7 +157,7 @@ export function defineIsoStore<Opts, State extends object, Message, NativeStoreI
 
     useEffect(() => {
       const instance = createStore(opts); // ideally we'd support rerendering based on changes to opts
-      instance.whenReady.then(() => {
+      void instance.whenReady.then(() => {
         setReady(true);
       });
       instanceRef.current = instance;

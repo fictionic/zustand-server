@@ -3,7 +3,7 @@ import type {HandlerResponse} from "./dispatchHandler";
 
 export function handleEndpoint(endpoint: StandardizedEndpoint): HandlerResponse {
   const { readable, writable } = new TransformStream();
-  (async () => {
+  void (async () => {
     try {
       const data = await endpoint.getResponseData();
       const source = new Response(data).body;

@@ -53,7 +53,7 @@ export function asSingleton<D extends IsoStoreDefinition<any, never, any, any, a
         throw new Error("no singleton instance has been created");
       }
       useEffect(() => {
-        instance.whenReady.then(() => {
+        void instance.whenReady.then(() => {
           setReady(true);
         });
       }, []);

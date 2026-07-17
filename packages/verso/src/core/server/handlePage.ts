@@ -183,7 +183,7 @@ export function handlePage(page: StandardizedPage): HandlerResponse {
   }
 
 
-  writePage().catch((err) => {
+  void writePage().catch((err) => {
     console.error("[verso] unexpected error writing page", err);
   }).then(() => {
     close();
@@ -212,14 +212,14 @@ function buffered(writer: WritableStreamDefaultWriter) {
   function flush() {
     if (closed) return;
     if (writeBuffer.length === 0) return;
-    writer.write(encoder.encode(writeBuffer));
+    void writer.write(encoder.encode(writeBuffer));
     writeBuffer = '';
   }
   function close() {
     if (closed) return;
     flush()
     closed = true;
-    writer.close();
+    void writer.close();
   }
   return { write, flush, close };
 }

@@ -205,7 +205,7 @@ export class ClientController {
       readablePipe.onCallFn(FN_ABORT_HYDRATION, () => abortHydration(nextRootIndex));
       readablePipe.onCallFn(FN_SIGNAL_END_OF_DATA, () => receivedAllDataDfd.resolve());
 
-      receivedAllDataDfd.promise.then(() => {
+      void receivedAllDataDfd.promise.then(() => {
         readablePipe.destroy(); // TODO: also remove script tags from dom?
       });
 
